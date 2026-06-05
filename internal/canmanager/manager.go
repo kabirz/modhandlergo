@@ -61,28 +61,28 @@ func (m *Manager) Connect(channel int, baud canhal.BaudRate) error {
 	defer m.mu.Unlock()
 
 	if m.channel != canhal.InvalidChannel {
-		m.log("CAN 连接已存在, 请勿重复连接")
+		m.log("CAN connection already exists")
 		return nil
 	}
 
 	if channel == VirtualChannel {
 		m.channel = channel
 		m.virtualMode = true
-		m.log("虚拟 CAN 连接成功 (测试模式)")
+		m.log("Virtual CAN connected (test mode)")
 		return nil
 	}
 
 	if m.backend == nil {
-		return fmt.Errorf("CAN HAL 未初始化")
+		return fmt.Errorf("CAN HAL not initialized")
 	}
 
 	if err := m.backend.Connect(channel, baud); err != nil {
-		return fmt.Errorf("CAN 初始化失败: %w", err)
+		return fmt.Errorf("CAN init failed: %w", err)
 	}
 
 	m.channel = channel
 	m.virtualMode = false
-	m.log(fmt.Sprintf("CAN(id=%xh) 连接成功 (%s)", channel, m.backend.Name()))
+	m.log(fmt.Sprintf("CAN(id=%xh) connected (%s)", channel, m.backend.Name()))
 
 	// Start dispatcher read thread — accepts ALL frames
 	if m.dispatcher != nil {
@@ -102,9 +102,9 @@ func (m *Manager) Disconnect() {
 	}
 
 	if m.virtualMode {
-		m.log("虚拟 CAN 连接已断开")
+		m.log("Virtual CAN disconnected")
 	} else if m.channel != canhal.InvalidChannel {
-		m.log(fmt.Sprintf("CAN(id=%xh) 连接已断开", m.channel))
+		m.log(fmt.Sprintf("CAN(id=%xh) disconnected", m.channel))
 		if m.backend != nil {
 			m.backend.Disconnect()
 		}
@@ -129,11 +129,11 @@ func (m *Manager) GetFirmwareVersion() (uint32, error) {
 	defer m.mu.Unlock()
 
 	if m.channel == canhal.InvalidChannel {
-		return 0, fmt.Errorf("CAN已断开连接, 请重新连接")
+		return 0, fmt.Errorf("CAN disconnected, please reconnect")
 	}
 
 	if m.virtualMode {
-		m.log("固件版本: v1.0.0 (虚拟 CAN)")
+		m.log("Firmware version: v1.0.0 (virtual CAN)")
 		return 0x01000000, nil
 	}
 
@@ -148,23 +148,23 @@ func (m *Manager) GetFirmwareVersion() (uint32, error) {
 		Flags: canhal.FlagStandard,
 	}
 	if err := m.backend.Write(frame); err != nil {
-		return 0, fmt.Errorf("CAN 发送失败")
+		return 0, fmt.Errorf("CAN send failed")
 	}
 
 	// Wait for response
 	resp, err := m.waitForResponse(5 * time.Second)
 	if err != nil {
-		return 0, fmt.Errorf("CAN 读取失败，超时！！")
+		return 0, fmt.Errorf("CAN read failed, timeout")
 	}
 
 	if resp.Code == FWCodeVersion {
 		version := resp.Val
-		m.log(fmt.Sprintf("固件版本: v%d.%d.%d",
+		m.log(fmt.Sprintf("Firmware version: v%d.%d.%d",
 			(version>>24)&0xFF, (version>>16)&0xFF, (version>>8)&0xFF))
 		return version, nil
 	}
 
-	return 0, fmt.Errorf("CAN 读取失败，数据错误！！")
+	return 0, fmt.Errorf("CAN read failed, data error")
 }
 
 // BoardReboot sends a reboot command to the board.
@@ -173,11 +173,11 @@ func (m *Manager) BoardReboot() error {
 	defer m.mu.Unlock()
 
 	if m.channel == canhal.InvalidChannel {
-		return fmt.Errorf("CAN已断开连接, 请重新连接")
+		return fmt.Errorf("CAN disconnected, please reconnect")
 	}
 
 	if m.virtualMode {
-		m.log("虚拟板卡重启成功")
+		m.log("Virtual board reboot successful")
 		return nil
 	}
 
@@ -191,7 +191,7 @@ func (m *Manager) BoardReboot() error {
 		Flags: canhal.FlagStandard,
 	}
 	if err := m.backend.Write(frame); err != nil {
-		return fmt.Errorf("CAN 发送失败")
+		return fmt.Errorf("CAN send failed")
 	}
 	return nil
 }
@@ -201,7 +201,7 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 	m.mu.Lock()
 	if m.channel == canhal.InvalidChannel {
 		m.mu.Unlock()
-		return fmt.Errorf("CAN已断开连接, 请重新连接")
+		return fmt.Errorf("CAN disconnected, please reconnect")
 	}
 	m.mu.Unlock()
 
@@ -214,7 +214,7 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 // DetectDevices delegates to the CAN backend to detect available devices.
 func (m *Manager) DetectDevices() ([]int, error) {
 	if m.backend == nil {
-		return nil, fmt.Errorf("CAN HAL 未初始化")
+		return nil, fmt.Errorf("CAN HAL not initialized")
 	}
 	return m.backend.DetectDevices()
 }
@@ -255,16 +255,16 @@ func (m *Manager) halFirmwareUpgrade(filePath string, testMode bool) error {
 	// Open firmware file
 	f, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("无法打开文件: %s", filePath)
+		return fmt.Errorf("cannot open file: %s", filePath)
 	}
 	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {
-		return fmt.Errorf("无法获取文件信息")
+		return fmt.Errorf("cannot get file info")
 	}
 	fileSize := fi.Size()
-	m.log(fmt.Sprintf("开始固件升级, 固件大小: %d 字节", fileSize))
+	m.log(fmt.Sprintf("Starting firmware upgrade, size: %d bytes", fileSize))
 
 	// Send start update command with file size
 	var data [8]byte
@@ -277,16 +277,16 @@ func (m *Manager) halFirmwareUpgrade(filePath string, testMode bool) error {
 		Flags: canhal.FlagStandard,
 	}
 	if err := m.backend.Write(frame); err != nil {
-		return fmt.Errorf("发送固件大小失败")
+		return fmt.Errorf("send firmware size failed")
 	}
 
 	// Wait for flash erase
 	resp, err := m.waitForResponse(15 * time.Second)
 	if err != nil {
-		return fmt.Errorf("Flash擦除超时")
+		return fmt.Errorf("flash erase timeout")
 	}
 	if resp.Code != FWCodeOffset || resp.Val != 0 {
-		return fmt.Errorf("Flash擦除失败: code(%d), offset(%d)", resp.Code, resp.Val)
+		return fmt.Errorf("flash erase failed: code(%d), offset(%d)", resp.Code, resp.Val)
 	}
 
 	// Send firmware data 8 bytes at a time
@@ -308,7 +308,7 @@ func (m *Manager) halFirmwareUpgrade(filePath string, testMode bool) error {
 		}
 
 		if err := m.backend.Write(frame); err != nil {
-			return fmt.Errorf("发送文件数据失败")
+			return fmt.Errorf("send file data failed")
 		}
 
 		bytesSent += int64(n)
@@ -319,13 +319,13 @@ func (m *Manager) halFirmwareUpgrade(filePath string, testMode bool) error {
 
 			resp, err := m.waitForResponse(5 * time.Second)
 			if err != nil {
-				return fmt.Errorf("固件更新超时!")
+				return fmt.Errorf("firmware update timeout")
 			}
 			if resp.Code == FWCodeSuccess && resp.Val == uint32(bytesSent) {
 				break
 			}
 			if resp.Code != FWCodeOffset {
-				return fmt.Errorf("固件升级失败: code(%d), offset(%d)", resp.Code, resp.Val)
+				return fmt.Errorf("firmware upgrade failed: code(%d), offset(%d)", resp.Code, resp.Val)
 			}
 		}
 	}
@@ -343,42 +343,42 @@ func (m *Manager) halFirmwareUpgrade(filePath string, testMode bool) error {
 	EncodeCANFrameData(CANFrameData{Code: CmdConfirm, Val: confirmVal}, frame.Data[:])
 
 	if err := m.backend.Write(frame); err != nil {
-		return fmt.Errorf("固件发送确认失败!")
+		return fmt.Errorf("firmware send confirm failed")
 	}
 
 	// Wait for confirmation
 	resp, err = m.waitForResponse(30 * time.Second)
 	if err != nil {
-		return fmt.Errorf("固件确认超时!")
+		return fmt.Errorf("firmware confirm timeout")
 	}
 
 	if resp.Code == FWCodeConfirm && resp.Val == 0x55AA55AA {
-		m.log(fmt.Sprintf("文件 %s 上传完成. 点击重启，板卡将在45-60秒内完成重启", filePath))
+		m.log(fmt.Sprintf("File %s upload complete. Click reboot, board will restart within 45-60 seconds", filePath))
 		return nil
 	}
 	if resp.Code == FWCodeTransferErr {
-		return fmt.Errorf("固件更新失败")
+		return fmt.Errorf("firmware update failed")
 	}
 
-	return fmt.Errorf("固件确认失败: code(%d), val(0x%08X)", resp.Code, resp.Val)
+	return fmt.Errorf("firmware confirm failed: code(%d), val(0x%08X)", resp.Code, resp.Val)
 }
 
 func (m *Manager) virtualFirmwareUpgrade(filePath string) error {
-	m.log("虚拟 CAN 模式：模拟固件升级...")
+	m.log("Virtual CAN mode: simulating firmware upgrade...")
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("无法打开源固件文件")
+		return fmt.Errorf("cannot open source firmware file")
 	}
 	defer f.Close()
 
 	fi, _ := f.Stat()
 	fileSize := fi.Size()
-	m.log(fmt.Sprintf("开始固件升级, 固件大小: %d 字节", fileSize))
-	m.log("输出文件: virtual_firmware.bin")
+	m.log(fmt.Sprintf("Starting firmware upgrade, size: %d bytes", fileSize))
+	m.log("Output file: virtual_firmware.bin")
 
 	time.Sleep(500 * time.Millisecond)
-	m.log("Flash 擦除完成")
+	m.log("Flash erase complete")
 
 	buf := make([]byte, 4096)
 	var totalBytes int64
@@ -394,12 +394,12 @@ func (m *Manager) virtualFirmwareUpgrade(filePath string) error {
 	}
 
 	time.Sleep(200 * time.Millisecond)
-	m.log("固件发送完成")
+	m.log("Firmware send complete")
 	time.Sleep(200 * time.Millisecond)
-	m.log("固件确认完成")
+	m.log("Firmware confirm complete")
 
 	m.progress(100)
-	m.log(fmt.Sprintf("虚拟固件已保存 (%d 字节)", totalBytes))
+	m.log(fmt.Sprintf("Virtual firmware saved (%d bytes)", totalBytes))
 	return nil
 }
 

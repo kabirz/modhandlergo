@@ -45,10 +45,10 @@ type Command struct {
 
 // Default quick commands (matching C code's g_defaultCommands)
 var defaultQuickCommands = []QuickCommand{
-	{CanID: 0x101, Data: [8]byte{0x00, 0x00, 0x00, 0x00}, DLC: 8, Name: "启动升级"},
-	{CanID: 0x101, Data: [8]byte{0x01, 0x00, 0x00, 0x00}, DLC: 8, Name: "确认"},
-	{CanID: 0x101, Data: [8]byte{0x02, 0x00, 0x00, 0x00}, DLC: 8, Name: "查版本"},
-	{CanID: 0x101, Data: [8]byte{0x03, 0x00, 0x00, 0x00}, DLC: 8, Name: "重启"},
+	{CanID: 0x101, Data: [8]byte{0x00, 0x00, 0x00, 0x00}, DLC: 8, Name: "Start Upgrade"},
+	{CanID: 0x101, Data: [8]byte{0x01, 0x00, 0x00, 0x00}, DLC: 8, Name: "Confirm"},
+	{CanID: 0x101, Data: [8]byte{0x02, 0x00, 0x00, 0x00}, DLC: 8, Name: "Query Version"},
+	{CanID: 0x101, Data: [8]byte{0x03, 0x00, 0x00, 0x00}, DLC: 8, Name: "Reboot"},
 }
 
 // New creates a new CAN Command module.
@@ -81,10 +81,10 @@ func (c *Command) SendFrame(canID uint32, data []byte, dlc int, isExtended, isRe
 	defer c.mu.Unlock()
 
 	if c.channel == canhal.InvalidChannel {
-		return fmt.Errorf("CAN 未连接")
+		return fmt.Errorf("CAN not connected")
 	}
 	if c.backend == nil {
-		return fmt.Errorf("CAN HAL 未初始化")
+		return fmt.Errorf("CAN HAL not initialized")
 	}
 
 	var frameData [8]byte
@@ -105,7 +105,7 @@ func (c *Command) SendFrame(canID uint32, data []byte, dlc int, isExtended, isRe
 	}
 
 	if err := c.backend.Write(frame); err != nil {
-		return fmt.Errorf("发送失败: %w", err)
+		return fmt.Errorf("send failed: %w", err)
 	}
 
 	// Notify callback about TX frame
@@ -182,16 +182,16 @@ func (c *Command) ReplaceBackend(backend canhal.Backend, dispatcher *candispatch
 // FrameIDLabel returns a human-readable label for known CAN frame IDs.
 func FrameIDLabel(id uint32) string {
 	labels := map[uint32]string{
-		canmanager.PlatformRx:     "控制命令",
-		canmanager.PlatformTx:     "响应帧",
-		canmanager.FWDataRx:       "固件数据",
-		canmanager.Heartbeat:      "心跳",
-		canmanager.ControllerState: "手柄状态",
-		canmanager.LaserRanging:   "激光测距",
-		canmanager.CoordXY:        "X/Y坐标",
-		canmanager.CoordZ:         "Z坐标",
-		canmanager.LoraConfigCmd:  "LoRa配参",
-		canmanager.LoraConfigResp: "LoRa配参响应",
+		canmanager.PlatformRx:     "Control Command",
+		canmanager.PlatformTx:     "Response Frame",
+		canmanager.FWDataRx:       "Firmware Data",
+		canmanager.Heartbeat:      "Heartbeat",
+		canmanager.ControllerState: "Controller State",
+		canmanager.LaserRanging:   "Laser Ranging",
+		canmanager.CoordXY:        "X/Y Coordinates",
+		canmanager.CoordZ:         "Z Coordinate",
+		canmanager.LoraConfigCmd:  "LoRa Config",
+		canmanager.LoraConfigResp: "LoRa Config Response",
 	}
 	if label, ok := labels[id]; ok {
 		return label

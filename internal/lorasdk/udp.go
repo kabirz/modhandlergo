@@ -68,7 +68,7 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 		// Enumerate all active IPv4 interfaces
 		ifaces, err := net.Interfaces()
 		if err != nil {
-			u.cb.OnError(fmt.Sprintf("枚举网卡失败: %v", err), LogUDP)
+			u.cb.OnError(fmt.Sprintf("enum network interfaces failed: %v", err), LogUDP)
 			return nil
 		}
 		for _, iface := range ifaces {
@@ -90,7 +90,7 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 	}
 
 	if len(localIPs) == 0 {
-		u.cb.OnError("无可用网卡", LogUDP)
+		u.cb.OnError("no available network interfaces", LogUDP)
 		return nil
 	}
 
@@ -119,7 +119,7 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 	}
 
 	if len(socks) == 0 {
-		u.cb.OnError("发送失败", LogUDP)
+		u.cb.OnError("send failed", LogUDP)
 		return nil
 	}
 
@@ -143,12 +143,12 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 			// Record the local interface IP for future use (C code: sdk->local_if_ip)
 			if u.localIP == "" {
 				u.localIP = s.ip
-				u.cb.OnLog(fmt.Sprintf("记录本端网卡: %s", s.ip), LogUDP)
+				u.cb.OnLog(fmt.Sprintf("recorded local interface: %s", s.ip), LogUDP)
 			}
 
 			// Record the remote device IP
 			if remoteAddr != nil {
-				u.cb.OnLog(fmt.Sprintf("响应来自: %s", remoteAddr.IP.String()), LogUDP)
+				u.cb.OnLog(fmt.Sprintf("response from: %s", remoteAddr.IP.String()), LogUDP)
 			}
 
 			gotResponse = true
@@ -166,7 +166,7 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 
 // SearchDevices broadcasts a discovery packet and collects responses.
 func (u *UDPClient) SearchDevices(ctx interface{}) {
-	u.cb.OnLog("开始搜索 LoRa 设备...", LogUDP)
+	u.cb.OnLog("Starting LoRa device search...", LogUDP)
 
 	// Reset local IP to force re-enumeration (matches C: sdk->local_if_ip[0] = '\0')
 	u.localIP = ""
@@ -179,7 +179,7 @@ func (u *UDPClient) SearchDevices(ctx interface{}) {
 
 	data, err := wrapJSON(payload)
 	if err != nil {
-		u.cb.OnError(fmt.Sprintf("构建搜索包失败: %v", err), LogUDP)
+		u.cb.OnError(fmt.Sprintf("build search packet failed: %v", err), LogUDP)
 		return
 	}
 
@@ -189,10 +189,10 @@ func (u *UDPClient) SearchDevices(ctx interface{}) {
 	}
 
 	if len(responses) == 0 {
-		u.cb.OnLog("未找到设备 (超时5s)", LogUDP)
+		u.cb.OnLog("No devices found (timeout 5s)", LogUDP)
 	}
 
-	u.cb.OnLog("设备搜索完成", LogUDP)
+	u.cb.OnLog("Device search complete", LogUDP)
 }
 
 // SendAT sends an AT command via UDP wrapped in USR1566 JSON protocol.
@@ -223,11 +223,11 @@ func (u *UDPClient) SendAT(atCmd string, gatewayIP string) {
 
 	data, err := wrapJSON(payload)
 	if err != nil {
-		u.cb.OnError(fmt.Sprintf("构建 AT 命令失败: %v", err), LogUDP)
+		u.cb.OnError(fmt.Sprintf("build AT command failed: %v", err), LogUDP)
 		return
 	}
 
-	u.cb.OnLog(fmt.Sprintf("UDP 发送: %s", strings.TrimSpace(atCmd)), LogUDP)
+	u.cb.OnLog(fmt.Sprintf("UDP send: %s", strings.TrimSpace(atCmd)), LogUDP)
 
 	responses := u.udpSendCore(data)
 	for _, resp := range responses {
@@ -238,7 +238,7 @@ func (u *UDPClient) SendAT(atCmd string, gatewayIP string) {
 // GetNetParams queries network parameters from a gateway.
 func (u *UDPClient) GetNetParams(gatewayIP string) {
 	if u.devMAC == "" {
-		u.cb.OnError("请先搜索设备", LogUDP)
+		u.cb.OnError("search devices first", LogUDP)
 		return
 	}
 
@@ -254,11 +254,11 @@ func (u *UDPClient) GetNetParams(gatewayIP string) {
 
 	data, err := wrapJSON(payload)
 	if err != nil {
-		u.cb.OnError(fmt.Sprintf("构建网络查询失败: %v", err), LogUDP)
+		u.cb.OnError(fmt.Sprintf("build network query failed: %v", err), LogUDP)
 		return
 	}
 
-	u.cb.OnLog("查询网络参数...", LogUDP)
+	u.cb.OnLog("Querying network parameters...", LogUDP)
 
 	responses := u.udpSendCore(data)
 	for _, resp := range responses {
@@ -269,7 +269,7 @@ func (u *UDPClient) GetNetParams(gatewayIP string) {
 // QueryRSSI queries gateway RSSI and sends the response via TCP.
 func (u *UDPClient) QueryRSSI(gatewayIP string, tcpClient *TCPClient, nid uint32) {
 	if !tcpClient.IsConnected() {
-		u.cb.OnError("TCP 未连接，无法查询 RSSI", LogUDP)
+		u.cb.OnError("TCP not connected, cannot query RSSI", LogUDP)
 		return
 	}
 
@@ -319,7 +319,7 @@ func (u *UDPClient) processResponse(raw string, fromIP string) {
 			u.devMAC = mac
 		}
 		u.cb.OnDeviceFound(mac, dev, sver, fromIP)
-		u.cb.OnLog("设备发现!", LogUDP)
+		u.cb.OnLog("Device found!", LogUDP)
 
 	case "ACK-GETPARA", "ACK-SETPARA":
 		cmdObj, ok := root["CMD"]
@@ -333,7 +333,7 @@ func (u *UDPClient) processResponse(raw string, fromIP string) {
 			gw, _ := cmd["GW"].(string)
 			if ip != "" {
 				u.cb.OnNetParams(ip, sm, gw)
-				u.cb.OnLog("网络参数已接收", LogUDP)
+				u.cb.OnLog("Network parameters received", LogUDP)
 			}
 		case string:
 			u.cb.OnATResponse(cmd)

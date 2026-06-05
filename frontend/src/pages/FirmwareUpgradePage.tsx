@@ -44,9 +44,9 @@ export function FirmwareUpgradePage() {
       if (devices.length > 0) {
         setSelectedDevice(devices[0].toString());
       }
-      addLog(`检测到 ${devices.length} 个 CAN 设备`);
+      addLog(`Detected ${devices.length} CAN device(s)`);
     } catch (err: any) {
-      addLog(`错误: ${err.message || err}`);
+      addLog(`Error: ${err.message || err}`);
     }
   };
 
@@ -58,9 +58,9 @@ export function FirmwareUpgradePage() {
       if (ports.length > 0) {
         setSelectedPort(ports[0].portName);
       }
-      addLog(`检测到 ${ports.length} 个串口`);
+      addLog(`Detected ${ports.length} serial port(s)`);
     } catch (err: any) {
-      addLog(`错误: ${err.message || err}`);
+      addLog(`Error: ${err.message || err}`);
     }
   };
 
@@ -73,7 +73,7 @@ export function FirmwareUpgradePage() {
           await CANUpgradeService.DisconnectUART();
         }
         setConnected(false);
-        addLog("已断开");
+        addLog("Disconnected");
       } else {
         if (channel === "can") {
           await CANUpgradeService.ConnectCAN(parseInt(selectedDevice) || 0, baudIndex);
@@ -81,28 +81,28 @@ export function FirmwareUpgradePage() {
           await CANUpgradeService.ConnectUART(selectedPort, parseInt(serialBaud));
         }
         setConnected(true);
-        addLog("连接成功");
+        addLog("Connected successfully");
       }
     } catch (err: any) {
-      addLog(`错误: ${err.message || err}`);
+      addLog(`Error: ${err.message || err}`);
     }
   };
 
   const handleUpgrade = async () => {
     if (!firmwarePath) {
-      addLog("请先选择固件文件");
+      addLog("Please select a firmware file first");
       return;
     }
     try {
       setProgress(0);
-      addLog(`开始固件升级: ${firmwarePath}`);
+      addLog(`Starting firmware upgrade: ${firmwarePath}`);
       if (channel === "can") {
         await CANUpgradeService.CANFirmwareUpgrade(firmwarePath, false);
       } else {
         await CANUpgradeService.UARTFirmwareUpgrade(firmwarePath, false);
       }
     } catch (err: any) {
-      addLog(`错误: ${err.message || err}`);
+      addLog(`Error: ${err.message || err}`);
     }
   };
 
@@ -115,9 +115,9 @@ export function FirmwareUpgradePage() {
         ver = await CANUpgradeService.UARTGetFirmwareVersion();
       }
       setVersion(ver);
-      addLog(`固件版本: ${ver}`);
+      addLog(`Firmware version: ${ver}`);
     } catch (err: any) {
-      addLog(`错误: ${err.message || err}`);
+      addLog(`Error: ${err.message || err}`);
     }
   };
 
@@ -128,9 +128,9 @@ export function FirmwareUpgradePage() {
       } else {
         await CANUpgradeService.UARTBoardReboot();
       }
-      addLog("重启命令已发送");
+      addLog("Reboot command sent");
     } catch (err: any) {
-      addLog(`错误: ${err.message || err}`);
+      addLog(`Error: ${err.message || err}`);
     }
   };
 
@@ -196,13 +196,13 @@ export function FirmwareUpgradePage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <Input value={firmwarePath} onChange={(e) => setFirmwarePath(e.target.value)} placeholder="选择固件文件 (.bin)" className="flex-1" />
+            <Input value={firmwarePath} onChange={(e) => setFirmwarePath(e.target.value)} placeholder="Select firmware file (.bin)" className="flex-1" />
             <Button variant="outline" onClick={async () => {
               try {
                 const path = await CANUpgradeService.OpenFirmwareFile();
                 if (path) setFirmwarePath(path);
               } catch (err: any) {
-                addLog(`错误: ${err.message || err}`);
+                addLog(`Error: ${err.message || err}`);
               }
             }}>{t("fw.browse")}</Button>
           </div>
@@ -233,7 +233,7 @@ export function FirmwareUpgradePage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>{t("fw.log")}</CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setLogs([])} title="清空日志">
+            <Button variant="ghost" size="icon" onClick={() => setLogs([])} title="Clear log">
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>

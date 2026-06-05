@@ -44,7 +44,7 @@ func (t *TCPClient) Connect(ip string, port int) {
 		addr := fmt.Sprintf("%s:%d", ip, port)
 		conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
 		if err != nil {
-			t.cb.OnError(fmt.Sprintf("TCP 连接失败: %v", err), LogTCP)
+			t.cb.OnError(fmt.Sprintf("TCP connect failed: %v", err), LogTCP)
 			t.cb.OnConnState(ConnDisconnected)
 			return
 		}
@@ -56,7 +56,7 @@ func (t *TCPClient) Connect(ip string, port int) {
 		t.mu.Unlock()
 
 		t.cb.OnConnState(ConnConnected)
-		t.cb.OnLog(fmt.Sprintf("TCP 已连接到 %s", addr), LogTCP)
+		t.cb.OnLog(fmt.Sprintf("TCP connected to %s", addr), LogTCP)
 
 		t.receiveLoop(ctx)
 
@@ -94,7 +94,7 @@ func (t *TCPClient) SendFrame(nid uint32, data []byte) error {
 	t.mu.Unlock()
 
 	if conn == nil {
-		return fmt.Errorf("TCP 未连接")
+		return fmt.Errorf("TCP not connected")
 	}
 
 	frame := BuildFrame(nid, data)
@@ -150,7 +150,7 @@ func (t *TCPClient) receiveLoop(ctx context.Context) {
 			if ctx.Err() != nil {
 				return // intentional disconnect
 			}
-			t.cb.OnLog("TCP 连接断开", LogTCP)
+			t.cb.OnLog("TCP connection lost", LogTCP)
 			return
 		}
 

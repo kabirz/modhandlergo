@@ -71,7 +71,7 @@ export function LoRaConfigPage() {
     if (data?.mac) setDevMac(data.mac);
     if (data?.name) setDevName(data.name);
     if (data?.version) setDevSw(data.version);
-    addLog(`设备发现: MAC=${data?.mac}, 设备=${data?.name}, SW=${data?.version}, IP=${data?.ip}`);
+    addLog(`Device found: MAC=${data?.mac}, Name=${data?.name}, SW=${data?.version}, IP=${data?.ip}`);
   });
   useWailsEvent<string>("lora:atresponse", (resp) => addLog(resp));
   useWailsEvent<string>("lora:gwid", (gwid) => setDevGwid(gwid));
@@ -80,7 +80,7 @@ export function LoRaConfigPage() {
     if (params?.ip) setNetIP(params.ip);
     if (params?.mask) setNetMask(params.mask);
     if (params?.gateway) setNetGW(params.gateway);
-    addLog(`网络参数: IP=${params?.ip}, 掩码=${params?.mask}, 网关=${params?.gateway}`);
+    addLog(`Network params: IP=${params?.ip}, Mask=${params?.mask}, GW=${params?.gateway}`);
   });
 
   // Parsed AT response events — update fields directly
@@ -115,8 +115,8 @@ export function LoRaConfigPage() {
   });
 
   const sendAT = async (cmd: string) => {
-    try { addLog(`发送: ${cmd}`); await LoRaConfigService.SendAT(cmd, gatewayIP); }
-    catch (err: any) { addLog(`错误: ${err.message || err}`); }
+    try { addLog(`Sent: ${cmd}`); await LoRaConfigService.SendAT(cmd, gatewayIP); }
+    catch (err: any) { addLog(`Error: ${err.message || err}`); }
   };
 
   const isMesh = nwmode === 1;
@@ -142,7 +142,7 @@ export function LoRaConfigPage() {
               <>
                 <Input value={serialPort} onChange={(e) => setSerialPort(e.target.value)} className="w-20 h-7 text-xs" placeholder="COM3" />
                 <Btn onClick={async () => {
-                  try { const ports = await CANUpgradeService.DetectSerialPorts(); addLog(`刷新串口: ${ports.length} 个`); } catch (err: any) { addLog(`错误: ${err.message || err}`); }
+                  try { const ports = await CANUpgradeService.DetectSerialPorts(); addLog(`Refreshed ports: ${ports.length} found`); } catch (err: any) { addLog(`Error: ${err.message || err}`); }
                 }}><RefreshCw className="h-2.5 w-2.5" /></Btn>
                 <Sel value={baudRate} onChange={setBaudRate} className="w-20"
                   options={["9600","19200","38400","57600","115200","230400","460800","921600"].map(b => ({ value: b, label: b }))} />
@@ -152,7 +152,7 @@ export function LoRaConfigPage() {
                     setSerialOpen(false);
                   } else {
                     try { await LoRaConfigService.SerialOpen(serialPort, parseInt(baudRate)); setSerialOpen(true); }
-                    catch (err: any) { addLog(`错误: ${err.message || err}`); }
+                    catch (err: any) { addLog(`Error: ${err.message || err}`); }
                   }
                 }} variant={serialOpen ? "destructive" : "default"}>
                   {serialOpen ? <><WifiOff className="h-2.5 w-2.5 mr-0.5" />{t("cfg.close")}</> : <><Wifi className="h-2.5 w-2.5 mr-0.5" />{t("cfg.open")}</>}
@@ -176,7 +176,7 @@ export function LoRaConfigPage() {
           </div>
           <div className="grid grid-cols-4 gap-x-4 gap-y-0.5 text-[11px]">
             {[
-              { l: "MAC", v: devMac }, { l: "设备", v: devName }, { l: "SW", v: devSw },
+              { l: "MAC", v: devMac }, { l: "Name", v: devName }, { l: "SW", v: devSw },
               { l: "GWID", v: devGwid },
             ].map(({ l, v }) => (
               <div key={l} className="flex items-center gap-1">
@@ -245,8 +245,8 @@ export function LoRaConfigPage() {
               <Sel value={sockaMode} onChange={setSockaMode} className="w-14"
                 options={[{ value: "TCPC", label: "TCPC" }, { value: "TCPS", label: "TCPS" }]} />
               <Input value={sockaIP} onChange={(e) => setSockaIP(e.target.value)} className="w-28 h-6 text-[11px] font-mono" />
-              <Input value={sockaRPort} onChange={(e) => setSockaRPort(e.target.value)} className="w-12 h-6 text-[11px] font-mono" placeholder="远端" />
-              <Input value={sockaLPort} onChange={(e) => setSockaLPort(e.target.value)} className="w-12 h-6 text-[11px] font-mono" placeholder="本端" />
+              <Input value={sockaRPort} onChange={(e) => setSockaRPort(e.target.value)} className="w-12 h-6 text-[11px] font-mono" placeholder="Remote" />
+              <Input value={sockaLPort} onChange={(e) => setSockaLPort(e.target.value)} className="w-12 h-6 text-[11px] font-mono" placeholder="Local" />
               <Btn onClick={() => sendAT(`AT+SOCKA=${sockaMode},${sockaIP},${sockaRPort},${sockaLPort}`)}>{t("cfg.set")}</Btn>
               <Btn onClick={() => sendAT("AT+SOCKA?")}>{t("cfg.query")}</Btn>
             </div>

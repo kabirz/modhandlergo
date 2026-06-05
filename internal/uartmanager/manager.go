@@ -55,7 +55,7 @@ func (m *Manager) progress(pct int) {
 func (m *Manager) EnumPorts() ([]SerialPortInfo, error) {
 	ports, err := serial.GetPortsList()
 	if err != nil {
-		return nil, fmt.Errorf("枚举串口失败: %w", err)
+		return nil, fmt.Errorf("enum serial ports failed: %w", err)
 	}
 
 	var result []SerialPortInfo
@@ -80,7 +80,7 @@ func (m *Manager) EnumPorts() ([]SerialPortInfo, error) {
 		})
 	}
 
-	m.log(fmt.Sprintf("查询到 %d 个可用串口", len(result)))
+	m.log(fmt.Sprintf("Found %d available serial ports", len(result)))
 	return result, nil
 }
 
@@ -90,7 +90,7 @@ func (m *Manager) Connect(portName string, baudRate int) error {
 	defer m.mu.Unlock()
 
 	if m.port != nil {
-		m.log("串口已连接, 请勿重复连接")
+		m.log("Serial port already connected")
 		return nil
 	}
 
@@ -103,14 +103,14 @@ func (m *Manager) Connect(portName string, baudRate int) error {
 
 	port, err := serial.Open(portName, mode)
 	if err != nil {
-		return fmt.Errorf("无法打开串口 %s: %w", portName, err)
+		return fmt.Errorf("cannot open serial port %s: %w", portName, err)
 	}
 
 	m.port = port
 	m.portName = portName
 	m.baudRate = baudRate
 
-	m.log(fmt.Sprintf("串口 %s 连接成功 (%d bps)", portName, baudRate))
+	m.log(fmt.Sprintf("Serial port %s connected (%d bps)", portName, baudRate))
 	return nil
 }
 
@@ -121,7 +121,7 @@ func (m *Manager) Disconnect() {
 
 	if m.port != nil {
 		m.port.Close()
-		m.log(fmt.Sprintf("串口 %s 连接已断开", m.portName))
+		m.log(fmt.Sprintf("Serial port %s disconnected", m.portName))
 		m.port = nil
 	}
 }
@@ -139,7 +139,7 @@ func (m *Manager) GetFirmwareVersion() (uint32, error) {
 	defer m.mu.Unlock()
 
 	if m.port == nil {
-		return 0, fmt.Errorf("串口未连接")
+		return 0, fmt.Errorf("serial port not connected")
 	}
 
 	// Clear receive buffer
@@ -149,27 +149,27 @@ func (m *Manager) GetFirmwareVersion() (uint32, error) {
 	frame := make([]byte, 32)
 	frameLen, err := BuildFrame(FrameTypeCmd, cmdData[:], frame)
 	if err != nil {
-		return 0, fmt.Errorf("构建命令帧失败: %w", err)
+		return 0, fmt.Errorf("build command frame failed: %w", err)
 	}
 
 	if _, err := m.port.Write(frame[:frameLen]); err != nil {
-		return 0, fmt.Errorf("发送版本查询命令失败: %w", err)
+		return 0, fmt.Errorf("send version query failed: %w", err)
 	}
 
-	m.log("等待版本响应...")
+	m.log("Waiting for version response...")
 
 	code, version, err := m.waitForResponse(5 * time.Second)
 	if err != nil {
-		return 0, fmt.Errorf("读取版本响应超时: %w", err)
+		return 0, fmt.Errorf("read version response timeout: %w", err)
 	}
 
 	if code == FWCodeVersion {
-		m.log(fmt.Sprintf("固件版本: v%d.%d.%d",
+		m.log(fmt.Sprintf("Firmware version: v%d.%d.%d",
 			(version>>24)&0xFF, (version>>16)&0xFF, (version>>8)&0xFF))
 		return version, nil
 	}
 
-	return 0, fmt.Errorf("读取版本响应数据错误")
+	return 0, fmt.Errorf("read version response data error")
 }
 
 // BoardReboot sends a reboot command via UART.
@@ -178,21 +178,21 @@ func (m *Manager) BoardReboot() error {
 	defer m.mu.Unlock()
 
 	if m.port == nil {
-		return fmt.Errorf("串口未连接")
+		return fmt.Errorf("serial port not connected")
 	}
 
 	cmdData := EncodeCommand(CmdReboot, 0)
 	frame := make([]byte, 32)
 	frameLen, err := BuildFrame(FrameTypeCmd, cmdData[:], frame)
 	if err != nil {
-		return fmt.Errorf("构建命令帧失败: %w", err)
+		return fmt.Errorf("build command frame failed: %w", err)
 	}
 
 	if _, err := m.port.Write(frame[:frameLen]); err != nil {
-		return fmt.Errorf("发送重启命令失败: %w", err)
+		return fmt.Errorf("send reboot command failed: %w", err)
 	}
 
-	m.log("重启命令已发送")
+	m.log("Reboot command sent")
 	return nil
 }
 
@@ -201,22 +201,22 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 	m.mu.Lock()
 	if m.port == nil {
 		m.mu.Unlock()
-		return fmt.Errorf("串口未连接")
+		return fmt.Errorf("serial port not connected")
 	}
 	m.mu.Unlock()
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("无法打开文件: %s", filePath)
+		return fmt.Errorf("cannot open file: %s", filePath)
 	}
 	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {
-		return fmt.Errorf("无法获取文件信息")
+		return fmt.Errorf("cannot get file info")
 	}
 	fileSize := fi.Size()
-	m.log(fmt.Sprintf("开始固件升级, 固件大小: %d 字节", fileSize))
+	m.log(fmt.Sprintf("Starting firmware upgrade, size: %d bytes", fileSize))
 
 	// Send start update command with file size
 	m.mu.Lock()
@@ -226,20 +226,20 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 
 	if _, err := m.port.Write(frame[:frameLen]); err != nil {
 		m.mu.Unlock()
-		return fmt.Errorf("发送固件大小失败")
+		return fmt.Errorf("send firmware size failed")
 	}
 	m.mu.Unlock()
 
 	// Wait for flash erase
 	code, offset, err := m.waitForResponse(15 * time.Second)
 	if err != nil {
-		return fmt.Errorf("Flash擦除超时")
+		return fmt.Errorf("flash erase timeout")
 	}
 	if code != FWCodeOffset || offset != 0 {
-		return fmt.Errorf("Flash擦除失败: code(%d), offset(%d)", code, offset)
+		return fmt.Errorf("flash erase failed: code(%d), offset(%d)", code, offset)
 	}
 
-	m.log("Flash擦除完成")
+	m.log("Flash erase complete")
 
 	// Send firmware data 8 bytes at a time
 	var bytesSent int64
@@ -252,7 +252,7 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("读取固件文件失败: %w", err)
+			return fmt.Errorf("read firmware file failed: %w", err)
 		}
 
 		// Pad to 8 bytes
@@ -266,7 +266,7 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 		m.mu.Unlock()
 
 		if writeErr != nil {
-			return fmt.Errorf("发送文件数据失败")
+			return fmt.Errorf("send file data failed")
 		}
 
 		bytesSent += 8
@@ -277,14 +277,14 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 
 			code, offset, err := m.waitForResponse(5 * time.Second)
 			if err != nil {
-				return fmt.Errorf("固件更新超时")
+				return fmt.Errorf("firmware update timeout")
 			}
 			if code == FWCodeSuccess {
 				transferComplete = true
 				break
 			}
 			if code != FWCodeOffset {
-				return fmt.Errorf("固件升级失败: code(%d), offset(%d)", code, offset)
+				return fmt.Errorf("firmware upgrade failed: code(%d), offset(%d)", code, offset)
 			}
 		}
 	}
@@ -295,10 +295,10 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 	if !transferComplete && bytesSent > 0 {
 		code, _, err := m.waitForResponse(5 * time.Second)
 		if err != nil {
-			return fmt.Errorf("等待固件传输完成超时")
+			return fmt.Errorf("wait firmware transfer complete timeout")
 		}
 		if code != FWCodeSuccess {
-			return fmt.Errorf("固件传输未成功完成: code(%d)", code)
+			return fmt.Errorf("firmware transfer failed: code(%d)", code)
 		}
 	}
 
@@ -315,23 +315,23 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 	m.mu.Unlock()
 
 	if writeErr != nil {
-		return fmt.Errorf("发送确认命令失败")
+		return fmt.Errorf("send confirm command failed")
 	}
 
 	code, respVal, err := m.waitForResponse(30 * time.Second)
 	if err != nil {
-		return fmt.Errorf("固件确认超时")
+		return fmt.Errorf("firmware confirm timeout")
 	}
 
 	if code == FWCodeConfirm && respVal == 0x55AA55AA {
-		m.log(fmt.Sprintf("文件 %s 上传完成", filePath))
+		m.log(fmt.Sprintf("File %s upload complete", filePath))
 		return nil
 	}
 	if code == FWCodeTransferErr {
-		return fmt.Errorf("固件更新失败")
+		return fmt.Errorf("firmware update failed")
 	}
 
-	return fmt.Errorf("固件确认失败: code(%d)", code)
+	return fmt.Errorf("firmware confirm failed: code(%d)", code)
 }
 
 func (m *Manager) waitForResponse(timeout time.Duration) (code uint32, val uint32, err error) {
@@ -343,7 +343,7 @@ func (m *Manager) waitForResponse(timeout time.Duration) (code uint32, val uint3
 		m.mu.Lock()
 		if m.port == nil {
 			m.mu.Unlock()
-			return 0, 0, fmt.Errorf("串口未连接")
+			return 0, 0, fmt.Errorf("serial port not connected")
 		}
 		// Set read deadline to avoid blocking forever
 		m.port.SetReadTimeout(100 * time.Millisecond)

@@ -17,9 +17,9 @@ interface FrameEntry {
 }
 
 const FRAME_LABELS: Record<number, string> = {
-  0x101: "控制命令", 0x102: "响应帧", 0x103: "固件数据",
-  0x105: "LoRa配参", 0x106: "LoRa响应",
-  0x1E3: "手柄状态", 0x263: "激光测距", 0x363: "X/Y坐标", 0x463: "Z坐标", 0x763: "心跳",
+  0x101: "Control", 0x102: "Response", 0x103: "Firmware",
+  0x105: "LoRa Config", 0x106: "LoRa Resp",
+  0x1E3: "Joystick", 0x263: "Laser", 0x363: "X/Y Coord", 0x463: "Z Coord", 0x763: "Heartbeat",
 };
 
 export function CanCommandPage() {
@@ -84,7 +84,7 @@ export function CanCommandPage() {
       await CANCommandService.SendFrame(id, hexStr, bytes.length, isExtended, isRemote);
       addFrame({ id, data: bytes, dlc: bytes.length, isTX: true, label: FRAME_LABELS[id] || "", timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }) });
     } catch (err: any) {
-      addFrame({ id: 0, data: [], dlc: 0, isTX: true, label: `发送失败: ${err.message || err}`, timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }) });
+      addFrame({ id: 0, data: [], dlc: 0, isTX: true, label: `Send failed: ${err.message || err}`, timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }) });
     }
   };
 
@@ -145,20 +145,20 @@ export function CanCommandPage() {
             {/* Protocol + Mode row */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
-                <label className="text-[10px] text-muted-foreground">协议:</label>
+                <label className="text-[10px] text-muted-foreground">Protocol:</label>
                 <select value={loraProt} onChange={(e) => setLoraProt(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-16" disabled={!loraPowered}>
                   {protOptions.map((o, i) => <option key={o} value={i}>{o}</option>)}
                 </select>
               </div>
               <div className="flex items-center gap-1">
-                <label className="text-[10px] text-muted-foreground">模式:</label>
+                <label className="text-[10px] text-muted-foreground">Mode:</label>
                 <select value={loraMode} onChange={(e) => setLoraMode(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-14" disabled={!loraPowered}>
                   {modeOptions.map((o, i) => <option key={o} value={i}>{o}</option>)}
                 </select>
               </div>
               <div className="flex-1" />
-              <Button onClick={() => CANCommandService.SendLoraCommand(2, "")} size="sm" variant="outline" className="h-6 text-[10px] px-1" disabled={!loraPowered}>查模式</Button>
-              <Button onClick={() => CANCommandService.SendLoraCommand(1, ((loraProt << 4) | (loraMode & 0x0F)).toString(16).padStart(2, "0"))} size="sm" className="h-6 text-[10px] px-1" disabled={!loraPowered}>设模式</Button>
+              <Button onClick={() => CANCommandService.SendLoraCommand(2, "")} size="sm" variant="outline" className="h-6 text-[10px] px-1" disabled={!loraPowered}>Query</Button>
+              <Button onClick={() => CANCommandService.SendLoraCommand(1, ((loraProt << 4) | (loraMode & 0x0F)).toString(16).padStart(2, "0"))} size="sm" className="h-6 text-[10px] px-1" disabled={!loraPowered}>Set</Button>
             </div>
 
             {/* CH1 + CH2 */}
@@ -171,8 +171,8 @@ export function CanCommandPage() {
                 <select value={loraCh1Freq} onChange={(e) => setLoraCh1Freq(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-14" disabled={!loraPowered}>
                   {freqOptions.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
-                <Button onClick={() => CANCommandService.SendLoraCommand(4, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>查</Button>
-                <Button onClick={() => CANCommandService.SendLoraCommand(3, `${loraCh1Spd.toString(16).padStart(2, "0")}${((loraCh1Freq >> 8) & 0xFF).toString(16).padStart(2, "0")}${(loraCh1Freq & 0xFF).toString(16).padStart(2, "0")}`)} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>设</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(4, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>R</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(3, `${loraCh1Spd.toString(16).padStart(2, "0")}${((loraCh1Freq >> 8) & 0xFF).toString(16).padStart(2, "0")}${(loraCh1Freq & 0xFF).toString(16).padStart(2, "0")}`)} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>W</Button>
               </div>
               <div className="flex items-center gap-1">
                 <label className="text-[10px] text-muted-foreground">CH2:</label>
@@ -182,8 +182,8 @@ export function CanCommandPage() {
                 <select value={loraCh2Freq} onChange={(e) => setLoraCh2Freq(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-14" disabled={!loraPowered}>
                   {freqOptions.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
-                <Button onClick={() => CANCommandService.SendLoraCommand(6, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>查</Button>
-                <Button onClick={() => CANCommandService.SendLoraCommand(5, `${loraCh2Spd.toString(16).padStart(2, "0")}${((loraCh2Freq >> 8) & 0xFF).toString(16).padStart(2, "0")}${(loraCh2Freq & 0xFF).toString(16).padStart(2, "0")}`)} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>设</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(6, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>R</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(5, `${loraCh2Spd.toString(16).padStart(2, "0")}${((loraCh2Freq >> 8) & 0xFF).toString(16).padStart(2, "0")}${(loraCh2Freq & 0xFF).toString(16).padStart(2, "0")}`)} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>W</Button>
               </div>
             </div>
 
@@ -194,19 +194,19 @@ export function CanCommandPage() {
                 <select value={loraPnum} onChange={(e) => setLoraPnum(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-10" disabled={!loraPowered}>
                   {[0, 1, 2].map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
-                <Button onClick={() => CANCommandService.SendLoraCommand(0x0B, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>查</Button>
-                <Button onClick={() => CANCommandService.SendLoraCommand(0x0C, loraPnum.toString(16).padStart(2, "0"))} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>设</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(0x0B, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>R</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(0x0C, loraPnum.toString(16).padStart(2, "0"))} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>W</Button>
               </div>
               <div className="flex items-center gap-1">
                 <label className="text-[10px] text-muted-foreground">GWID:</label>
                 <Input value={loraGwid.toString(16).toUpperCase().padStart(8, "0")} onChange={(e) => setLoraGwid(parseInt(e.target.value, 16) || 0)} className="w-20 h-7 text-[10px] font-mono" disabled={!loraPowered} />
-                <Button onClick={() => CANCommandService.SendLoraCommand(9, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>查</Button>
-                <Button onClick={() => CANCommandService.SendLoraCommand(0x0A, `${((loraGwid >> 24) & 0xFF).toString(16).padStart(2, "0")}${((loraGwid >> 16) & 0xFF).toString(16).padStart(2, "0")}${((loraGwid >> 8) & 0xFF).toString(16).padStart(2, "0")}${(loraGwid & 0xFF).toString(16).padStart(2, "0")}`)} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>设</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(9, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>R</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(0x0A, `${((loraGwid >> 24) & 0xFF).toString(16).padStart(2, "0")}${((loraGwid >> 16) & 0xFF).toString(16).padStart(2, "0")}${((loraGwid >> 8) & 0xFF).toString(16).padStart(2, "0")}${(loraGwid & 0xFF).toString(16).padStart(2, "0")}`)} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>W</Button>
               </div>
               <div className="flex items-center gap-1">
                 <label className="text-[10px] text-muted-foreground">NID:</label>
                 <Input value={loraNid.toString(16).toUpperCase().padStart(8, "0")} onChange={(e) => setLoraNid(parseInt(e.target.value, 16) || 0)} className="w-20 h-7 text-[10px] font-mono" disabled={!loraPowered} />
-                <Button onClick={() => CANCommandService.SendLoraCommand(7, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>查</Button>
+                <Button onClick={() => CANCommandService.SendLoraCommand(7, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>R</Button>
               </div>
             </div>
           </CardContent>
@@ -222,7 +222,7 @@ export function CanCommandPage() {
               <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
                 <input type="checkbox" checked={autoScroll} onChange={(e) => setAutoScroll(e.target.checked)} /> {t("can.autoScroll")}
               </label>
-              <Button variant="ghost" size="icon" onClick={() => setFrames([])} title="清空">
+              <Button variant="ghost" size="icon" onClick={() => setFrames([])} title="Clear">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>

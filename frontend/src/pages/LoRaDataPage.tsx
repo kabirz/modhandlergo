@@ -75,8 +75,8 @@ export function LoRaDataPage() {
   // Connection state
   useWailsEvent<number>("lora:connstate", (state) => {
     setConnected(state === 2);
-    const labels = ["已断开", "连接中", "已连接"];
-    addLog(`连接状态: ${labels[state] || "未知"}`);
+    const labels = ["Disconnected", "Connecting", "Connected"];
+    addLog(`Connection state: ${labels[state] || "Unknown"}`);
   });
 
   // All frames: update history + NID + joystick
@@ -119,7 +119,7 @@ export function LoRaDataPage() {
         const btn = body[4] & 0x01;
         setXAngle(`${(xSigned / 10).toFixed(1)}°`);
         setYAngle(`${(ySigned / 10).toFixed(1)}°`);
-        setBtnState(btn === 0 ? "按下" : "松开");
+        setBtnState(btn === 0 ? "Pressed" : "Released");
       }
     }
   });
@@ -130,7 +130,7 @@ export function LoRaDataPage() {
     try {
       if (connected) { await LoRaDataService.Disconnect(); }
       else { await LoRaDataService.Connect(ip, parseInt(port)); }
-    } catch (err: any) { addLog(`错误: ${err.message || err}`); }
+    } catch (err: any) { addLog(`Error: ${err.message || err}`); }
   };
 
   const handleSend = async () => {
@@ -140,17 +140,17 @@ export function LoRaDataPage() {
     try {
       await LoRaDataService.SendFrame(nidVal, bytes.map(b => b.toString(16).padStart(2, "0")).join(""));
       setTxCount((c) => c + 1);
-    } catch (err: any) { addLog(`发送失败: ${err.message || err}`); }
+    } catch (err: any) { addLog(`Send failed: ${err.message || err}`); }
   };
 
   const handleSaveCsv = () => {
-    const header = "时间,NID,类型,数据\n";
+    const header = "Time,NID,Type,Data\n";
     const rows = history.map((h) => `${h.time},${h.nid},${h.type},"${h.data}"`).join("\n");
     const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "lora_history.csv"; a.click();
     URL.revokeObjectURL(url);
-    addLog(`已保存 ${history.length} 条记录到 CSV`);
+    addLog(`Saved ${history.length} records to CSV`);
   };
 
   const handleClear = () => {
@@ -206,7 +206,7 @@ export function LoRaDataPage() {
       {/* Operations */}
       <div className="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border/50">
         <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-        <Input value={sendData} onChange={(e) => setSendData(e.target.value)} placeholder="hex 数据 (空格分隔)"
+        <Input value={sendData} onChange={(e) => setSendData(e.target.value)} placeholder="hex data (space separated)"
           className="flex-1 h-7 text-xs font-mono" onKeyDown={(e) => e.key === "Enter" && handleSend()} />
         <Button onClick={handleSend} size="sm" className="h-7 px-4">{t("lora.send")}</Button>
         <div className="w-px h-5 bg-border/50" />

@@ -56,7 +56,7 @@ func (s *CANCommandService) SetChannel(channel int) {
 // SendFrame sends a CAN frame.
 func (s *CANCommandService) SendFrame(canID uint32, data []byte, dlc int, isExtended, isRemote bool) error {
 	if s.cmd == nil {
-		return fmt.Errorf("CAN 命令模块未初始化")
+		return fmt.Errorf("CAN command module not initialized")
 	}
 	return s.cmd.SendFrame(canID, data, dlc, isExtended, isRemote)
 }
@@ -64,11 +64,11 @@ func (s *CANCommandService) SendFrame(canID uint32, data []byte, dlc int, isExte
 // SendQuickCommand sends a quick command by index.
 func (s *CANCommandService) SendQuickCommand(index int) error {
 	if s.cmd == nil {
-		return fmt.Errorf("CAN 命令模块未初始化")
+		return fmt.Errorf("CAN command module not initialized")
 	}
 	cmds := s.cmd.GetQuickCommands()
 	if index < 0 || index >= len(cmds) {
-		return fmt.Errorf("无效的快捷命令索引: %d", index)
+		return fmt.Errorf("invalid quick command index: %d", index)
 	}
 	qc := cmds[index]
 	return s.cmd.SendFrame(qc.CanID, qc.Data[:], int(qc.DLC), qc.IsExtended, qc.IsRemote)
@@ -77,7 +77,7 @@ func (s *CANCommandService) SendQuickCommand(index int) error {
 // StartMonitor starts the CAN bus monitor.
 func (s *CANCommandService) StartMonitor() error {
 	if s.cmd == nil {
-		return fmt.Errorf("CAN 命令模块未初始化")
+		return fmt.Errorf("CAN command module not initialized")
 	}
 	s.cmd.StartMonitor()
 	return nil
@@ -118,7 +118,7 @@ func (s *CANCommandService) GetFrameLabel(id uint32) string {
 // The payload format matches the embedded firmware mod-can.h protocol.
 func (s *CANCommandService) SendLoraCommand(cmd int, dataHex string) error {
 	if s.cmd == nil {
-		return fmt.Errorf("CAN 命令模块未初始化")
+		return fmt.Errorf("CAN command module not initialized")
 	}
 	dataBytes := parseHexBytes(dataHex)
 	payload := append([]byte{byte(cmd)}, dataBytes...)

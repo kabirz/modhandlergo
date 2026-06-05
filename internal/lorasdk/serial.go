@@ -29,7 +29,7 @@ func (s *SerialClient) Open(portName string, baudRate int) error {
 	defer s.mu.Unlock()
 
 	if s.isOpen {
-		return fmt.Errorf("串口已打开")
+		return fmt.Errorf("serial port already open")
 	}
 
 	mode := &serial.Mode{
@@ -41,14 +41,14 @@ func (s *SerialClient) Open(portName string, baudRate int) error {
 
 	port, err := serial.Open(portName, mode)
 	if err != nil {
-		return fmt.Errorf("无法打开串口 %s: %w", portName, err)
+		return fmt.Errorf("cannot open serial port %s: %w", portName, err)
 	}
 
 	s.port = port
 	s.isOpen = true
 	s.atMode = false
 
-	s.cb.OnLog(fmt.Sprintf("串口 %s 已打开 (%d bps)", portName, baudRate), LogSerial)
+	s.cb.OnLog(fmt.Sprintf("serial port %s opened (%d bps)", portName, baudRate), LogSerial)
 
 	// Enter AT mode
 	s.enterATMode()
@@ -72,7 +72,7 @@ func (s *SerialClient) Close() {
 	s.port.Close()
 	s.port = nil
 	s.isOpen = false
-	s.cb.OnLog("串口已关闭", LogSerial)
+	s.cb.OnLog("serial port closed", LogSerial)
 }
 
 // IsOpen returns whether the serial port is open.
@@ -88,17 +88,17 @@ func (s *SerialClient) SendAT(cmd string) error {
 	defer s.mu.Unlock()
 
 	if !s.isOpen || s.port == nil {
-		return fmt.Errorf("串口未打开")
+		return fmt.Errorf("serial port not open")
 	}
 
 	if !strings.HasSuffix(cmd, "\r\n") {
 		cmd += "\r\n"
 	}
 
-	s.cb.OnLog(fmt.Sprintf("串口发送: %s", strings.TrimSpace(cmd)), LogSerial)
+	s.cb.OnLog(fmt.Sprintf("serial send: %s", strings.TrimSpace(cmd)), LogSerial)
 
 	if _, err := s.port.Write([]byte(cmd)); err != nil {
-		return fmt.Errorf("串口写入失败: %w", err)
+		return fmt.Errorf("serial write failed: %w", err)
 	}
 
 	// Read response
@@ -123,7 +123,7 @@ func (s *SerialClient) SendAT(cmd string) error {
 
 	if len(response) > 0 {
 		respStr := string(response)
-		s.cb.OnLog(fmt.Sprintf("串口响应: %s", strings.TrimSpace(respStr)), LogSerial)
+		s.cb.OnLog(fmt.Sprintf("serial response: %s", strings.TrimSpace(respStr)), LogSerial)
 		s.cb.OnATResponse(respStr)
 	}
 
@@ -160,7 +160,7 @@ func (s *SerialClient) enterATMode() {
 	}
 
 	s.atMode = true
-	s.cb.OnLog("已进入 AT 模式", LogSerial)
+	s.cb.OnLog("entered AT mode", LogSerial)
 }
 
 func (s *SerialClient) exitATMode() {
