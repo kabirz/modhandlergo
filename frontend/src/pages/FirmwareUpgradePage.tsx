@@ -6,13 +6,14 @@ import { Select } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Upload } from "lucide-react";
+import { CANUpgradeService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 const baudRates = ["10K", "20K", "50K", "100K", "125K", "250K", "500K", "1M"];
 const serialBaudRates = ["9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600"];
 
 export function FirmwareUpgradePage() {
   const [channel, setChannel] = useState<"can" | "uart">("can");
-  const [baudIndex, setBaudIndex] = useState(6); // 500K
+  const [baudIndex, setBaudIndex] = useState(6);
   const [serialBaud, setSerialBaud] = useState("115200");
   const [canDevices, setCanDevices] = useState<number[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");
@@ -33,36 +34,94 @@ export function FirmwareUpgradePage() {
   useWailsEvent<string>("uart:log", (msg) => addLog(msg));
   useWailsEvent<number>("uart:progress", (pct) => setProgress(pct));
 
-  const handleDetectDevices = () => {
-    setCanDevices([0x51]); // placeholder
-    addLog("正在检测 CAN 设备...");
+  const handleDetectDevices = async () => {
+    try {
+      const devices = await CANUpgradeService.DetectCANDevices();
+      setCanDevices(devices);
+      addLog(`检测到 ${devices.length} 个 CAN 设备`);
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
-  const handleDetectPorts = () => {
-    setSerialPorts([{ portName: "COM3", friendlyName: "COM3" }]); // placeholder
-    addLog("正在枚举串口...");
+  const handleDetectPorts = async () => {
+    try {
+      const ports = await CANUpgradeService.DetectSerialPorts();
+      setSerialPorts(ports);
+      addLog(`检测到 ${ports.length} 个串口`);
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
-  const handleConnect = () => {
-    setConnected(!connected);
-    addLog(connected ? "已断开" : "连接中...");
+  const handleConnect = async () => {
+    try {
+      if (connected) {
+        if (channel === "can") {
+          await CANUpgradeService.DisconnectCAN();
+        } else {
+          await CANUpgradeService.DisconnectUART();
+        }
+        setConnected(false);
+        addLog("已断开");
+      } else {
+        if (channel === "can") {
+          await CANUpgradeService.ConnectCAN(parseInt(selectedDevice) || 0, baudIndex);
+        } else {
+          await CANUpgradeService.ConnectUART(selectedPort, parseInt(serialBaud));
+        }
+        setConnected(true);
+        addLog("连接成功");
+      }
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
-  const handleUpgrade = () => {
+  const handleUpgrade = async () => {
     if (!firmwarePath) {
       addLog("请先选择固件文件");
       return;
     }
-    setProgress(0);
-    addLog(`开始固件升级: ${firmwarePath}`);
+    try {
+      setProgress(0);
+      addLog(`开始固件升级: ${firmwarePath}`);
+      if (channel === "can") {
+        await CANUpgradeService.CANFirmwareUpgrade(firmwarePath, false);
+      } else {
+        await CANUpgradeService.UARTFirmwareUpgrade(firmwarePath, false);
+      }
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
-  const handleQueryVersion = () => {
-    setVersion("v1.0.0 (查询中...)");
+  const handleQueryVersion = async () => {
+    try {
+      let ver: string;
+      if (channel === "can") {
+        ver = await CANUpgradeService.CANGetFirmwareVersion();
+      } else {
+        ver = await CANUpgradeService.UARTGetFirmwareVersion();
+      }
+      setVersion(ver);
+      addLog(`固件版本: ${ver}`);
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
-  const handleReboot = () => {
-    addLog("发送重启命令...");
+  const handleReboot = async () => {
+    try {
+      if (channel === "can") {
+        await CANUpgradeService.CANBoardReboot();
+      } else {
+        await CANUpgradeService.UARTBoardReboot();
+      }
+      addLog("重启命令已发送");
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
   return (
@@ -86,9 +145,7 @@ export function FirmwareUpgradePage() {
                 <Select value={selectedDevice} onChange={(e) => setSelectedDevice(e.target.value)} className="w-48">
                   <option value="">选择设备</option>
                   {canDevices.map((d, i) => (
-                    <option key={i} value={d.toString()}>
-                      Channel 0x{d.toString(16)}
-                    </option>
+                    <option key={i} value={d.toString()}>Channel 0x{d.toString(16)}</option>
                   ))}
                 </Select>
                 <Select value={baudIndex.toString()} onChange={(e) => setBaudIndex(Number(e.target.value))} className="w-24">
@@ -102,8 +159,8 @@ export function FirmwareUpgradePage() {
               <>
                 <Select value={selectedPort} onChange={(e) => setSelectedPort(e.target.value)} className="w-36">
                   <option value="">选择串口</option>
-                  {serialPorts.map((p, i) => (
-                    <option key={i} value={p.portName}>{p.friendlyName}</option>
+                  {serialPorts.map((p: any, i: number) => (
+                    <option key={i} value={p.portName}>{p.friendlyName || p.portName}</option>
                   ))}
                 </Select>
                 <Select value={serialBaud} onChange={(e) => setSerialBaud(e.target.value)} className="w-32">
@@ -129,15 +186,8 @@ export function FirmwareUpgradePage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <Input
-              value={firmwarePath}
-              onChange={(e) => setFirmwarePath(e.target.value)}
-              placeholder="选择固件文件 (.bin)"
-              className="flex-1"
-            />
-            <Button variant="outline" onClick={() => setFirmwarePath("firmware.bin")}>
-              浏览
-            </Button>
+            <Input value={firmwarePath} onChange={(e) => setFirmwarePath(e.target.value)} placeholder="选择固件文件 (.bin)" className="flex-1" />
+            <Button variant="outline" onClick={() => setFirmwarePath("firmware.bin")}>浏览</Button>
           </div>
         </CardContent>
       </Card>
@@ -152,20 +202,12 @@ export function FirmwareUpgradePage() {
           <p className="text-sm text-muted-foreground text-center">{progress}%</p>
 
           <div className="flex items-center gap-3 justify-center">
-            <Button onClick={handleUpgrade} disabled={!connected || !firmwarePath}>
-              开始升级
-            </Button>
-            <Button variant="outline" onClick={handleQueryVersion} disabled={!connected}>
-              查询版本
-            </Button>
-            <Button variant="outline" onClick={handleReboot} disabled={!connected}>
-              重启板卡
-            </Button>
+            <Button onClick={handleUpgrade} disabled={!connected || !firmwarePath}>开始升级</Button>
+            <Button variant="outline" onClick={handleQueryVersion} disabled={!connected}>查询版本</Button>
+            <Button variant="outline" onClick={handleReboot} disabled={!connected}>重启板卡</Button>
           </div>
 
-          {version && (
-            <p className="text-center text-sm">当前版本: {version}</p>
-          )}
+          {version && <p className="text-center text-sm">当前版本: {version}</p>}
         </CardContent>
       </Card>
 

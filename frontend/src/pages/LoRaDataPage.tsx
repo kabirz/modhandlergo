@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Radio } from "lucide-react";
+import { LoRaDataService, LoRaConfigService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 export function LoRaDataPage() {
   const [ip, setIp] = useState("192.168.1.100");
@@ -33,9 +34,16 @@ export function LoRaDataPage() {
     addLog(msg);
   });
 
-  const handleConnect = () => {
-    // Will be wired to Go backend via bindings
-    addLog(`正在连接 ${ip}:${port}...`);
+  const handleConnect = async () => {
+    try {
+      if (connected) {
+        await LoRaDataService.Disconnect();
+      } else {
+        await LoRaDataService.Connect(ip, parseInt(port));
+      }
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
   return (
@@ -49,18 +57,8 @@ export function LoRaDataPage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <Input
-              value={ip}
-              onChange={(e) => setIp(e.target.value)}
-              placeholder="网关 IP"
-              className="w-48"
-            />
-            <Input
-              value={port}
-              onChange={(e) => setPort(e.target.value)}
-              placeholder="端口"
-              className="w-24"
-            />
+            <Input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="网关 IP" className="w-48" />
+            <Input value={port} onChange={(e) => setPort(e.target.value)} placeholder="端口" className="w-24" />
             <Button onClick={handleConnect} variant={connected ? "destructive" : "default"}>
               {connected ? "断开" : "连接"}
             </Button>
@@ -93,9 +91,7 @@ export function LoRaDataPage() {
             {logs.length === 0 ? (
               <p className="text-muted-foreground">等待日志...</p>
             ) : (
-              logs.map((log, i) => (
-                <div key={i}>{log}</div>
-              ))
+              logs.map((log, i) => <div key={i}>{log}</div>)
             )}
           </div>
         </CardContent>

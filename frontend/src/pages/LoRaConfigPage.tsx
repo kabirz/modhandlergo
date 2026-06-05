@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Settings } from "lucide-react";
+import { LoRaConfigService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 export function LoRaConfigPage() {
   const [transport, setTransport] = useState("udp");
@@ -36,15 +37,34 @@ export function LoRaConfigPage() {
     addLog(`网络参数: IP=${params?.ip} 掩码=${params?.mask} 网关=${params?.gateway}`);
   });
 
-  const handleSearch = () => {
-    setDevices([]);
-    addLog("开始搜索设备...");
+  const handleSearch = async () => {
+    try {
+      setDevices([]);
+      await LoRaConfigService.SearchDevices();
+      addLog("开始搜索 LoRa 设备...");
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
-  const handleSendAT = () => {
+  const handleSendAT = async () => {
     if (!atCmd.trim()) return;
-    addLog(`发送: ${atCmd}`);
-    setAtResponse("");
+    try {
+      addLog(`发送: ${atCmd}`);
+      setAtResponse("");
+      await LoRaConfigService.SendAT(atCmd, gatewayIP);
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
+  };
+
+  const handleReboot = async () => {
+    try {
+      addLog("发送重启命令...");
+      await LoRaConfigService.Reboot(gatewayIP);
+    } catch (err: any) {
+      addLog(`错误: ${err.message || err}`);
+    }
   };
 
   return (
@@ -58,28 +78,14 @@ export function LoRaConfigPage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <Select
-              value={transport}
-              onChange={(e) => setTransport(e.target.value)}
-              className="w-32"
-            >
+            <Select value={transport} onChange={(e) => setTransport(e.target.value)} className="w-32">
               <option value="udp">UDP 网络</option>
               <option value="serial">串口直连</option>
             </Select>
             {transport === "udp" ? (
-              <Input
-                value={gatewayIP}
-                onChange={(e) => setGatewayIP(e.target.value)}
-                placeholder="网关 IP"
-                className="w-48"
-              />
+              <Input value={gatewayIP} onChange={(e) => setGatewayIP(e.target.value)} placeholder="网关 IP" className="w-48" />
             ) : (
-              <Input
-                value={serialPort}
-                onChange={(e) => setSerialPort(e.target.value)}
-                placeholder="串口号 (如 COM3)"
-                className="w-48"
-              />
+              <Input value={serialPort} onChange={(e) => setSerialPort(e.target.value)} placeholder="串口号 (如 COM3)" className="w-48" />
             )}
           </div>
         </CardContent>
@@ -93,14 +99,12 @@ export function LoRaConfigPage() {
         <CardContent>
           <div className="flex items-center gap-3 mb-3">
             <Button onClick={handleSearch}>搜索设备</Button>
+            <Button variant="outline" onClick={handleReboot}>重启网关</Button>
           </div>
           {devices.length > 0 ? (
             <div className="space-y-2">
               {devices.map((d, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-sm"
-                >
+                <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-sm">
                   <span>{d.name || d.mac}</span>
                   <span className="text-muted-foreground">{d.ip}</span>
                 </div>
@@ -144,27 +148,19 @@ export function LoRaConfigPage() {
           <div className="grid grid-cols-4 gap-3">
             <div>
               <label className="text-xs text-muted-foreground">组网模式</label>
-              <Select className="mt-1">
-                <option>NWMODE</option>
-              </Select>
+              <Select className="mt-1"><option>NWMODE</option></Select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground">透传模式</label>
-              <Select className="mt-1">
-                <option>TTMODE</option>
-              </Select>
+              <Select className="mt-1"><option>TTMODE</option></Select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground">通道</label>
-              <Select className="mt-1">
-                <option>CH</option>
-              </Select>
+              <Select className="mt-1"><option>CH</option></Select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground">速率</label>
-              <Select className="mt-1">
-                <option>SPD</option>
-              </Select>
+              <Select className="mt-1"><option>SPD</option></Select>
             </div>
           </div>
         </CardContent>
@@ -199,9 +195,7 @@ export function LoRaConfigPage() {
         </CardHeader>
         <CardContent>
           <div className="h-32 overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg">
-            {logs.map((log, i) => (
-              <div key={i}>{log}</div>
-            ))}
+            {logs.map((log, i) => <div key={i}>{log}</div>)}
           </div>
         </CardContent>
       </Card>
