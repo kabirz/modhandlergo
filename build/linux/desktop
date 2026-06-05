@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=My Product
+Comment=A ModHandlerGo application
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/modhandlergo.exe %u
+Terminal=false
+Type=Application
+Icon=modhandlergo.exe
+Categories=Utility;
+StartupWMClass=modhandlergo.exe
+
+ 
