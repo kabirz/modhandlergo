@@ -2,43 +2,58 @@ package main
 
 import (
 	"embed"
-
 	"log"
-	"time"
 
+	"github.com/kabirz/modhandlergo/internal/lorasdk"
+	"github.com/kabirz/modhandlergo/service"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
-
-// Wails uses Go's `embed` package to embed the frontend files into the binary.
-// Any files in the frontend/dist folder will be embedded into the binary and
-// made available to the frontend.
-// See https://pkg.go.dev/embed for more information.
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func init() {
-	// Register a custom event whose associated data type is string.
-	// This is not required, but the binding generator will pick up registered events
-	// and provide a strongly typed JS/TS API for them.
-	application.RegisterEvent[string]("time")
+	// Register typed events for the binding generator.
+	application.RegisterEvent[string]("can:log")
+	application.RegisterEvent[int]("can:progress")
+	application.RegisterEvent[string]("uart:log")
+	application.RegisterEvent[int]("uart:progress")
+	application.RegisterEvent[string]("lora:log")
+	application.RegisterEvent[lorasdk.ConnState]("lora:connstate")
+	application.RegisterEvent[lorasdk.ScannerData]("lora:scanner")
+	application.RegisterEvent[map[string]interface{}]("lora:device")
+	application.RegisterEvent[string]("lora:atresponse")
+	application.RegisterEvent[map[string]string]("lora:netparams")
+	application.RegisterEvent[map[string]interface{}]("can:frame")
 }
 
-// main function serves as the application's entry point. It initializes the application, creates a window,
-// and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
-// logs any error that might occur.
 func main() {
+	// Create shared services
+	commonSvc := service.NewCommonService()
 
-	// Create a new Wails application by providing the necessary options.
-	// Variables 'Name' and 'Description' are for application metadata.
-	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
-	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
-	// 'Mac' options tailor the application when running an macOS.
+	// Create LoRa SDK with event-routing callbacks
+	loraCallbacks := &loraCallbackBridge{}
+	loraSDK := lorasdk.NewSDK(loraCallbacks)
+
+	loraDataSvc := service.NewLoRaDataService(loraSDK)
+	loraConfigSvc := service.NewLoRaConfigService(loraSDK)
+	canUpgradeSvc := service.NewCANUpgradeService(commonSvc)
+	canCommandSvc := service.NewCANCommandService(commonSvc)
+
+	// Store app reference in callbacks for event emission
+	loraCallbacks.appReady = func(app *application.App) {
+		loraCallbacks.app = app
+	}
+
 	app := application.New(application.Options{
 		Name:        "ModHandlerGo",
-		Description: "A demo of using raw HTML & CSS",
+		Description: "ModHandler PC Tool — 激光测距系统配套工具",
 		Services: []application.Service{
-			application.NewService(&GreetService{}),
+			application.NewService(commonSvc),
+			application.NewService(loraDataSvc),
+			application.NewService(loraConfigSvc),
+			application.NewService(canUpgradeSvc),
+			application.NewService(canCommandSvc),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -48,37 +63,96 @@ func main() {
 		},
 	})
 
-	// Create a new window with the necessary options.
-	// 'Title' is the title of the window.
-	// 'Mac' options tailor the window when running on macOS.
-	// 'BackgroundColour' is the background colour of the window.
-	// 'URL' is the URL that will be loaded into the webview.
+	// Pass app to callback bridge
+	loraCallbacks.app = app
+
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title: "Window 1",
+		Title:  "ModHandlerGo",
+		Width:  1280,
+		Height: 800,
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,
 			TitleBar:                application.MacTitleBarHiddenInset,
 		},
-		BackgroundColour: application.NewRGB(27, 38, 54),
-		URL:              "/",
+		BackgroundColour: application.NewRGB(24, 24, 27),
+		URL:               "/",
 	})
 
-	// Create a goroutine that emits an event containing the current time every second.
-	// The frontend can listen to this event and update the UI accordingly.
-	go func() {
-		for {
-			now := time.Now().Format(time.RFC1123)
-			app.Event.Emit("time", now)
-			time.Sleep(time.Second)
-		}
-	}()
-
-	// Run the application. This blocks until the application has been exited.
 	err := app.Run()
-
-	// If an error occurred while running the application, log it and exit.
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+// loraCallbackBridge routes LoRa SDK callbacks to Wails events.
+type loraCallbackBridge struct {
+	app     *application.App
+	appReady func(*application.App)
+}
+
+func (b *loraCallbackBridge) OnConnState(state lorasdk.ConnState) {
+	if b.app != nil {
+		b.app.Event.Emit("lora:connstate", int(state))
+	}
+}
+
+func (b *loraCallbackBridge) OnFrame(nid uint32, payload []byte) {
+	if b.app != nil {
+		data := map[string]interface{}{
+			"nid":     nid,
+			"payload": payload,
+		}
+		b.app.Event.Emit("lora:frame", data)
+	}
+}
+
+func (b *loraCallbackBridge) OnDeviceFound(mac, deviceName, swVersion, fromIP string) {
+	if b.app != nil {
+		data := map[string]interface{}{
+			"mac":     mac,
+			"name":    deviceName,
+			"version": swVersion,
+			"ip":      fromIP,
+		}
+		b.app.Event.Emit("lora:device", data)
+	}
+}
+
+func (b *loraCallbackBridge) OnATResponse(response string) {
+	if b.app != nil {
+		b.app.Event.Emit("lora:atresponse", response)
+	}
+}
+
+func (b *loraCallbackBridge) OnNetParams(ip, mask, gateway string) {
+	if b.app != nil {
+		data := map[string]string{
+			"ip":      ip,
+			"mask":    mask,
+			"gateway": gateway,
+		}
+		b.app.Event.Emit("lora:netparams", data)
+	}
+}
+
+func (b *loraCallbackBridge) OnLog(message string, source lorasdk.LogSource) {
+	if b.app != nil {
+		b.app.Event.Emit("lora:log", message)
+	}
+}
+
+func (b *loraCallbackBridge) OnHexDump(prefix string, data []byte) {
+	if b.app != nil {
+		b.app.Event.Emit("lora:hexdump", map[string]interface{}{
+			"prefix": prefix,
+			"data":   data,
+		})
+	}
+}
+
+func (b *loraCallbackBridge) OnError(message string, source lorasdk.LogSource) {
+	if b.app != nil {
+		b.app.Event.Emit("lora:log", "[ERROR] "+message)
 	}
 }
