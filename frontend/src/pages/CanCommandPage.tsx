@@ -229,7 +229,7 @@ export function CanCommandPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div ref={monitorRef} className="h-[380px] overflow-y-auto bg-terminal-bg rounded-md font-mono text-[11px]">
+          <div ref={monitorRef} className="overflow-y-auto bg-terminal-bg rounded-md font-mono text-[11px] terminal-selectable terminal-lg">
             <table className="w-full">
               <thead className="sticky top-0 bg-terminal-header">
                 <tr className="text-muted-foreground text-left">

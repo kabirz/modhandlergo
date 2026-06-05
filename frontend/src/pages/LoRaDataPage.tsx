@@ -197,7 +197,7 @@ export function LoRaDataPage() {
 
         <div className="p-3 rounded-lg bg-card border border-border/50 flex flex-col">
           <div className="text-xs font-medium text-muted-foreground mb-2">{t("lora.rawLog")}</div>
-          <div ref={logRef} className="flex-1 h-48 overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed">
+          <div ref={logRef} className="overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed terminal-selectable">
             {logLines.length === 0 ? <span className="text-muted-foreground/50">{t("lora.waitLog")}</span> : logLines.map((l, i) => <div key={i}>{l}</div>)}
           </div>
         </div>
@@ -221,7 +221,7 @@ export function LoRaDataPage() {
       {/* History */}
       <div className="p-3 rounded-lg bg-card border border-border/50 flex-1">
         <div className="text-xs font-medium text-muted-foreground mb-2">{t("lora.history")}</div>
-        <div ref={historyRef} className="h-48 overflow-y-auto rounded-md text-[11px]">
+        <div ref={historyRef} className="overflow-y-auto rounded-md text-[11px] terminal-selectable">
           <table className="w-full">
             <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm">
               <tr className="text-muted-foreground text-left">

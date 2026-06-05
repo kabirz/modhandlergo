@@ -145,7 +145,21 @@
     user-select: none;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
-  #root {
-    min-height: 100vh;
+  .terminal-selectable {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+    word-break: break-all;
+    height: 200px;
+    min-height: 200px;
+    max-height: 200px;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+  }
+
+  .terminal-selectable.terminal-lg {
+    height: 380px;
+    min-height: 380px;
+    max-height: 380px;
   }
 }

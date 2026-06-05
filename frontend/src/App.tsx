@@ -55,8 +55,10 @@ function App() {
         darkMode={darkMode === "dark"}
         onToggleTheme={toggleTheme}
       />
-      <main className="flex-1 overflow-y-auto p-6">
-        <PageComponent />
+      <main className="flex-1 overflow-hidden p-6">
+        <div className="h-full overflow-y-auto">
+          <PageComponent />
+        </div>
       </main>
     </div>
     </I18nProvider>

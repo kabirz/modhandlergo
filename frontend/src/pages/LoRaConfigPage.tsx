@@ -279,7 +279,7 @@ export function LoRaConfigPage() {
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
-        <div className="h-36 overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed">
+        <div className="overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed terminal-selectable">
           {logs.length === 0 ? <span className="text-muted-foreground/50">{t("cfg.waitResp")}</span> : logs.map((l, i) => <div key={i}>{l}</div>)}
         </div>
       </div>
