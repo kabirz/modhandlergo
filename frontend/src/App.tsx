@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
+import { I18nProvider } from "@/lib/i18n";
 import { LoRaDataPage } from "@/pages/LoRaDataPage";
 import { LoRaConfigPage } from "@/pages/LoRaConfigPage";
 import { FirmwareUpgradePage } from "@/pages/FirmwareUpgradePage";
@@ -46,6 +47,7 @@ function App() {
   const PageComponent = pages[activePage] || LoRaDataPage;
 
   return (
+    <I18nProvider>
     <div className="flex h-screen overflow-hidden bg-background transition-colors duration-300">
       <Sidebar
         activePage={activePage}
@@ -57,6 +59,7 @@ function App() {
         <PageComponent />
       </main>
     </div>
+    </I18nProvider>
   );
 }
 

@@ -1,26 +1,17 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import {
-  Radio,
-  Settings,
-  Upload,
-  Terminal,
-  Sun,
-  Moon,
-  type LucideIcon,
+  Radio, Settings, Upload, Terminal, Sun, Moon, Languages, type LucideIcon,
 } from "lucide-react";
 
-export interface NavItem {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-}
+interface NavItem { id: string; labelKey: string; icon: LucideIcon; }
 
-export const navItems: NavItem[] = [
-  { id: "lora-data", label: "LoRa 数据", icon: Radio },
-  { id: "lora-config", label: "LoRa 配置", icon: Settings },
-  { id: "firmware", label: "固件升级", icon: Upload },
-  { id: "can-command", label: "CAN 命令", icon: Terminal },
+const navItems: NavItem[] = [
+  { id: "lora-data", labelKey: "nav.loraData", icon: Radio },
+  { id: "lora-config", labelKey: "nav.loraConfig", icon: Settings },
+  { id: "firmware", labelKey: "nav.firmware", icon: Upload },
+  { id: "can-command", labelKey: "nav.canCommand", icon: Terminal },
 ];
 
 export const APP_VERSION = "0.1.0";
@@ -33,6 +24,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme }: SidebarProps) {
+  const { lang, setLang, t } = useI18n();
+
   return (
     <aside className="w-[200px] min-w-[200px] h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-colors duration-300">
       {/* Navigation */}
@@ -52,47 +45,65 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme }: Sid
               )}
             >
               <Icon className="h-4 w-4" />
-              <span>{item.label}</span>
+              <span>{t(item.labelKey)}</span>
             </button>
           );
         })}
       </nav>
 
-      {/* Footer: Theme + Version */}
+      {/* Footer */}
       <div className="px-2 py-3 border-t border-sidebar-border space-y-2">
-        {/* Theme Toggle */}
+        {/* Theme */}
         <div className="flex items-center gap-1 px-2">
-          <span className="text-[11px] text-muted-foreground shrink-0">主题：</span>
+          <span className="text-[11px] text-muted-foreground shrink-0">{t("sidebar.theme")}：</span>
           <button
             onClick={() => { if (darkMode) onToggleTheme(); }}
             className={cn(
               "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition-colors",
-              !darkMode
-                ? "bg-primary text-primary-foreground"
-                : "bg-background text-foreground border border-input hover:bg-muted"
+              !darkMode ? "bg-primary text-primary-foreground" : "bg-background text-foreground border border-input hover:bg-muted"
             )}
           >
-            <Sun className="h-3 w-3" />
-            亮色
+            <Sun className="h-3 w-3" />{t("sidebar.light")}
           </button>
           <button
             onClick={() => { if (!darkMode) onToggleTheme(); }}
             className={cn(
               "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition-colors",
-              darkMode
-                ? "bg-primary text-primary-foreground"
-                : "bg-background text-foreground border border-input hover:bg-muted"
+              darkMode ? "bg-primary text-primary-foreground" : "bg-background text-foreground border border-input hover:bg-muted"
             )}
           >
-            <Moon className="h-3 w-3" />
-            暗色
+            <Moon className="h-3 w-3" />{t("sidebar.dark")}
+          </button>
+        </div>
+
+        {/* Language */}
+        <div className="flex items-center gap-1 px-2">
+          <Languages className="h-3 w-3 text-muted-foreground shrink-0" />
+          <span className="text-[11px] text-muted-foreground shrink-0">{t("sidebar.lang")}：</span>
+          <button
+            onClick={() => setLang("zh")}
+            className={cn(
+              "px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition-colors",
+              lang === "zh" ? "bg-primary text-primary-foreground" : "bg-background text-foreground border border-input hover:bg-muted"
+            )}
+          >
+            中文
+          </button>
+          <button
+            onClick={() => setLang("en")}
+            className={cn(
+              "px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition-colors",
+              lang === "en" ? "bg-primary text-primary-foreground" : "bg-background text-foreground border border-input hover:bg-muted"
+            )}
+          >
+            EN
           </button>
         </div>
 
         {/* Version */}
         <div className="px-2">
           <span className="text-[11px] text-muted-foreground">
-            版本：v{APP_VERSION}
+            {t("sidebar.version")}：v{APP_VERSION}
           </span>
         </div>
       </div>

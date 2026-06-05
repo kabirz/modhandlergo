@@ -6,12 +6,14 @@ import { Select } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Upload, Trash2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 import { CANUpgradeService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 const baudRates = ["10K", "20K", "50K", "100K", "125K", "250K", "500K", "1M"];
 const serialBaudRates = ["9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600"];
 
 export function FirmwareUpgradePage() {
+  const { t } = useI18n();
   const [channel, setChannel] = useState<"can" | "uart">("can");
   const [baudIndex, setBaudIndex] = useState(6);
   const [serialBaud, setSerialBaud] = useState("115200");
@@ -138,7 +140,7 @@ export function FirmwareUpgradePage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Upload className="h-4 w-4" /> 通道选择
+            <Upload className="h-4 w-4" /> {t("fw.channel")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -151,7 +153,7 @@ export function FirmwareUpgradePage() {
             {channel === "can" ? (
               <>
                 <Select value={selectedDevice} onChange={(e) => setSelectedDevice(e.target.value)} className="w-48">
-                  <option value="">选择设备</option>
+                  <option value="">{t("fw.selectDev")}</option>
                   {canDevices.map((d, i) => (
                     <option key={i} value={d.toString()}>Channel 0x{d.toString(16)}</option>
                   ))}
@@ -161,12 +163,12 @@ export function FirmwareUpgradePage() {
                     <option key={i} value={i.toString()}>{br}</option>
                   ))}
                 </Select>
-                <Button variant="outline" size="sm" onClick={handleDetectDevices}>检测设备</Button>
+                <Button variant="outline" size="sm" onClick={handleDetectDevices}>{t("fw.detectDev")}</Button>
               </>
             ) : (
               <>
                 <Select value={selectedPort} onChange={(e) => setSelectedPort(e.target.value)} className="w-36">
-                  <option value="">选择串口</option>
+                  <option value="">{t("fw.selectPort")}</option>
                   {serialPorts.map((p: any, i: number) => (
                     <option key={i} value={p.portName}>{p.friendlyName || p.portName}</option>
                   ))}
@@ -176,12 +178,12 @@ export function FirmwareUpgradePage() {
                     <option key={br} value={br}>{br}</option>
                   ))}
                 </Select>
-                <Button variant="outline" size="sm" onClick={handleDetectPorts}>检测串口</Button>
+                <Button variant="outline" size="sm" onClick={handleDetectPorts}>{t("fw.detectPort")}</Button>
               </>
             )}
 
             <Button onClick={handleConnect} variant={connected ? "destructive" : "default"}>
-              {connected ? "断开" : "连接"}
+              {connected ? t("lora.disconnect") : t("lora.conn")}
             </Button>
           </div>
         </CardContent>
@@ -190,12 +192,12 @@ export function FirmwareUpgradePage() {
       {/* Firmware File */}
       <Card>
         <CardHeader>
-          <CardTitle>固件文件</CardTitle>
+          <CardTitle>{t("fw.firmwareFile")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
             <Input value={firmwarePath} onChange={(e) => setFirmwarePath(e.target.value)} placeholder="选择固件文件 (.bin)" className="flex-1" />
-            <Button variant="outline" onClick={() => setFirmwarePath("firmware.bin")}>浏览</Button>
+            <Button variant="outline" onClick={() => setFirmwarePath("firmware.bin")}>{t("fw.browse")}</Button>
           </div>
         </CardContent>
       </Card>
@@ -203,19 +205,19 @@ export function FirmwareUpgradePage() {
       {/* Progress & Controls */}
       <Card>
         <CardHeader>
-          <CardTitle>升级控制</CardTitle>
+          <CardTitle>{t("fw.upgrade")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Progress value={progress} />
           <p className="text-sm text-muted-foreground text-center">{progress}%</p>
 
           <div className="flex items-center gap-3 justify-center">
-            <Button onClick={handleUpgrade} disabled={!connected || !firmwarePath}>开始升级</Button>
-            <Button variant="outline" onClick={handleQueryVersion} disabled={!connected}>查询版本</Button>
-            <Button variant="outline" onClick={handleReboot} disabled={!connected}>重启板卡</Button>
+            <Button onClick={handleUpgrade} disabled={!connected || !firmwarePath}>{t("fw.startUpgrade")}</Button>
+            <Button variant="outline" onClick={handleQueryVersion} disabled={!connected}>{t("fw.queryVer")}</Button>
+            <Button variant="outline" onClick={handleReboot} disabled={!connected}>{t("fw.reboot")}</Button>
           </div>
 
-          {version && <p className="text-center text-sm">当前版本: {version}</p>}
+          {version && <p className="text-center text-sm">{t("fw.curVersion")}: {version}</p>}
         </CardContent>
       </Card>
 
@@ -223,7 +225,7 @@ export function FirmwareUpgradePage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>日志</CardTitle>
+            <CardTitle>{t("fw.log")}</CardTitle>
             <Button variant="ghost" size="icon" onClick={() => setLogs([])} title="清空日志">
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -232,7 +234,7 @@ export function FirmwareUpgradePage() {
         <CardContent>
           <div className="h-48 overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg">
             {logs.length === 0 ? (
-              <p className="text-muted-foreground">等待操作...</p>
+              <p className="text-muted-foreground">{t("fw.waitOp")}</p>
             ) : (
               logs.map((log, i) => <div key={i}>{log}</div>)
             )}

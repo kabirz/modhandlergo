@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Terminal, Trash2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 import { CANCommandService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 interface FrameEntry {
@@ -22,6 +23,7 @@ const FRAME_LABELS: Record<number, string> = {
 };
 
 export function CanCommandPage() {
+  const { t } = useI18n();
   // Frame config
   const [canId, setCanId] = useState("101");
   const [dataHex, setDataHex] = useState("00 00 00 00 00 00 00 00");
@@ -99,7 +101,7 @@ export function CanCommandPage() {
         <Card>
           <CardHeader className="pb-1 pt-2">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <Terminal className="h-4 w-4" /> 帧配置
+              <Terminal className="h-4 w-4" /> {t("can.frameConfig")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5">
@@ -109,18 +111,18 @@ export function CanCommandPage() {
               <span className="text-[10px] text-muted-foreground">(Hex)</span>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-muted-foreground w-12 shrink-0">格式:</label>
-              <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!isExtended} onChange={() => setIsExtended(false)} /> 标准</label>
-              <label className="flex items-center gap-1 text-xs"><input type="radio" checked={isExtended} onChange={() => setIsExtended(true)} /> 扩展</label>
+              <label className="text-xs text-muted-foreground w-12 shrink-0">{t("can.format")}:</label>
+              <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!isExtended} onChange={() => setIsExtended(false)} /> {t("can.standard")}</label>
+              <label className="flex items-center gap-1 text-xs"><input type="radio" checked={isExtended} onChange={() => setIsExtended(true)} /> {t("can.extended")}</label>
               <span className="w-6" />
-              <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!isRemote} onChange={() => setIsRemote(false)} /> 数据</label>
-              <label className="flex items-center gap-1 text-xs"><input type="radio" checked={isRemote} onChange={() => setIsRemote(true)} /> 远程</label>
+              <label className="flex items-center gap-1 text-xs"><input type="radio" checked={!isRemote} onChange={() => setIsRemote(false)} /> {t("can.dataFrame")}</label>
+              <label className="flex items-center gap-1 text-xs"><input type="radio" checked={isRemote} onChange={() => setIsRemote(true)} /> {t("can.remoteFrame")}</label>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-muted-foreground w-12 shrink-0">数据:</label>
+              <label className="text-xs text-muted-foreground w-12 shrink-0">{t("can.data")}:</label>
               <Input value={dataHex} onChange={(e) => setDataHex(e.target.value)} className="flex-1 h-7 text-xs font-mono" />
             </div>
-            <Button onClick={handleSendFrame} size="sm" className="w-full h-7 text-xs">发送帧</Button>
+            <Button onClick={handleSendFrame} size="sm" className="w-full h-7 text-xs">{t("can.sendFrame")}</Button>
           </CardContent>
         </Card>
 
@@ -128,13 +130,13 @@ export function CanCommandPage() {
         <Card>
           <CardHeader className="pb-1 pt-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">LoRa 配置</CardTitle>
+              <CardTitle className="text-sm">{t("can.loraConfig")}</CardTitle>
               <div className="flex items-center gap-1">
                 <Button onClick={async () => { await CANCommandService.SendLoraCommand(0x0F, loraPowered ? "00" : "01"); setLoraPowered(!loraPowered); }} size="sm" variant={loraPowered ? "destructive" : "default"} className="h-6 text-[10px] px-2">
-                  {loraPowered ? "断电" : "上电"}
+                  {loraPowered ? t("can.powerOff") : t("can.powerOn")}
                 </Button>
                 <Button onClick={async () => { await CANCommandService.SendLoraCommand(0x0D, loraTestMode ? "00" : "01"); setLoraTestMode(!loraTestMode); }} size="sm" variant="outline" className="h-6 text-[10px] px-2" disabled={!loraPowered}>
-                  {loraTestMode ? "退测试" : "测试"}
+                  {loraTestMode ? t("can.exitTest") : t("can.test")}
                 </Button>
               </div>
             </div>
@@ -215,10 +217,10 @@ export function CanCommandPage() {
       <Card>
         <CardHeader className="pb-1 pt-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">总线监视器</CardTitle>
+            <CardTitle className="text-sm">{t("can.busMonitor")}</CardTitle>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
-                <input type="checkbox" checked={autoScroll} onChange={(e) => setAutoScroll(e.target.checked)} /> 自动滚动
+                <input type="checkbox" checked={autoScroll} onChange={(e) => setAutoScroll(e.target.checked)} /> {t("can.autoScroll")}
               </label>
               <Button variant="ghost" size="icon" onClick={() => setFrames([])} title="清空">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -231,11 +233,11 @@ export function CanCommandPage() {
             <table className="w-full">
               <thead className="sticky top-0 bg-terminal-header">
                 <tr className="text-muted-foreground text-left">
-                  <th className="px-2 py-0.5 w-16">时间</th>
+                  <th className="px-2 py-0.5 w-16">{t("can.time")}</th>
                   <th className="px-2 py-0.5 w-6"></th>
                   <th className="px-2 py-0.5 w-16">ID</th>
-                  <th className="px-2 py-0.5 w-20">标注</th>
-                  <th className="px-2 py-0.5">数据</th>
+                  <th className="px-2 py-0.5 w-20">{t("can.label")}</th>
+                  <th className="px-2 py-0.5">{t("can.data")}</th>
                   <th className="px-2 py-0.5 w-8">DLC</th>
                 </tr>
               </thead>
