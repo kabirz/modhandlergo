@@ -182,10 +182,13 @@ type parsedFrame struct {
 	Payload []byte
 }
 
-// parseFrame attempts to parse a single LoRa frame from the buffer.
-// Returns the parsed frame and the number of bytes consumed.
+// parseFrame parses frames from rxbuf matching the C lora_sdk_tcp.c logic:
+// 1. Find 0xAA 0x55 header
+// 2. Find \r\n as frame terminator
+// 3. Content = NID(4) + LEN(2) + DATA + CRC(2)
+// 4. Verify CRC over NID+LEN+DATA
 func (t *TCPClient) parseFrame(buf []byte) (*parsedFrame, int) {
-	// Find frame header: 0xAA 0x55
+	// Find header 0xAA 0x55
 	start := -1
 	for i := 0; i <= len(buf)-2; i++ {
 		if buf[i] == FrameHdr1 && buf[i+1] == FrameHdr2 {
@@ -197,49 +200,70 @@ func (t *TCPClient) parseFrame(buf []byte) (*parsedFrame, int) {
 		return nil, len(buf) // discard everything
 	}
 
-	// Discard any bytes before header
+	// Discard bytes before header
 	if start > 0 {
-		// Keep the header and everything after
 		buf = buf[start:]
 		start = 0
 	}
 
-	// Need at least: HDR(2) + NID(4) + LEN(2) = 8 bytes for header
-	if len(buf) < 8 {
-		return nil, 0
+	// Find \r\n terminator (C code: sdk->tcp_rx_buf[i] == 0x0D && sdk->tcp_rx_buf[i+1] == 0x0A)
+	tailPos := -1
+	for i := 2; i+1 < len(buf); i++ {
+		if buf[i] == 0x0D && buf[i+1] == 0x0A {
+			tailPos = i
+			break
+		}
+	}
+	if tailPos < 0 {
+		// If buffer is too large without finding \r\n, discard header to re-sync
+		if len(buf) > 2048 {
+			return nil, 2
+		}
+		return nil, 0 // incomplete, wait for more data
 	}
 
-	nid := binary.BigEndian.Uint32(buf[2:6])
-	dataLen := int(binary.BigEndian.Uint16(buf[6:8]))
+	// Content is between header(2) and \r\n
+	// C code: content_len = tail_pos - 2
+	contentLen := tailPos - 2
+	totalLen := tailPos + 2 // includes \r\n
 
-	// Total frame: HDR(2) + NID(4) + LEN(2) + DATA(dataLen) + CRC(2) + CRLF(2)
-	totalLen := 2 + 4 + 2 + dataLen + 2 + 2
-
-	if len(buf) < totalLen {
-		return nil, 0 // incomplete
+	// C code: if (content_len >= SDK_FRAME_OVERHEAD)
+	// SDK_FRAME_OVERHEAD = NID(4) + LEN(2) + CRC(2) = 8
+	if contentLen < 8 {
+		return nil, totalLen
 	}
 
-	// Verify CRC
-	crcData := buf[6 : 8+dataLen] // NID + LEN + DATA (from after header to before CRC)
-	expectedCRC := calcCRC16(buf[2 : 6+dataLen]) // from NID to end of DATA
-	actualCRC := binary.BigEndian.Uint16(buf[8+dataLen : 10+dataLen])
-	_ = crcData
+	// Parse content: NID(4) + LEN(2) + DATA + CRC(2)
+	content := buf[2 : 2+contentLen]
+	nid := binary.BigEndian.Uint32(content[0:4])
+	dataLen := int(binary.BigEndian.Uint16(content[4:6]))
 
-	if actualCRC != expectedCRC {
-		t.cb.OnError("LoRa 帧CRC校验失败", LogTCP)
-		return nil, 2 // skip header, try next
+	// C code: total = SDK_FRAME_HEADER_SIZE + data_len + SDK_FRAME_CRC_SIZE
+	// SDK_FRAME_HEADER_SIZE = NID(4) + LEN(2) = 6
+	// SDK_FRAME_CRC_SIZE = 2
+	expectedContentLen := 6 + dataLen + 2
+	if contentLen < expectedContentLen {
+		return nil, totalLen
+	}
+	if expectedContentLen > 2048 {
+		return nil, 2 // abnormal frame, re-sync
 	}
 
-	// Verify CRLF footer
-	if buf[totalLen-2] != '\r' || buf[totalLen-1] != '\n' {
-		return nil, 2 // skip header
+	// CRC check: CRC-CCITT over NID(4) + LEN(2) + DATA, seed=0
+	// C code: crc16_ccitt(0, data, SDK_FRAME_HEADER_SIZE + data_len)
+	calcCRC := crc16CCITT(0, content[0:6+dataLen])
+	rxCRC := binary.BigEndian.Uint16(content[6+dataLen : 6+dataLen+2])
+
+	if calcCRC != rxCRC {
+		t.cb.OnError(fmt.Sprintf("CRC error! calc=%04X rx=%04X", calcCRC, rxCRC), LogTCP)
+		return nil, totalLen
 	}
 
-	// Extract payload
+	// Extract payload (DATA part, after NID+LEN)
 	var payload []byte
 	if dataLen > 0 {
 		payload = make([]byte, dataLen)
-		copy(payload, buf[8:8+dataLen])
+		copy(payload, content[6:6+dataLen])
 	}
 
 	return &parsedFrame{NID: nid, Payload: payload}, totalLen

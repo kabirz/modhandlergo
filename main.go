@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/kabirz/modhandlergo/internal/lorasdk"
+	"github.com/kabirz/modhandlergo/internal/loraservice"
 	"github.com/kabirz/modhandlergo/service"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -19,8 +20,9 @@ func init() {
 	application.RegisterEvent[string]("uart:log")
 	application.RegisterEvent[int]("uart:progress")
 	application.RegisterEvent[string]("lora:log")
-	application.RegisterEvent[lorasdk.ConnState]("lora:connstate")
-	application.RegisterEvent[lorasdk.ScannerData]("lora:scanner")
+	application.RegisterEvent[int]("lora:connstate")
+	application.RegisterEvent[map[string]interface{}]("lora:scanner")
+	application.RegisterEvent[map[string]interface{}]("lora:frame")
 	application.RegisterEvent[map[string]interface{}]("lora:device")
 	application.RegisterEvent[string]("lora:atresponse")
 	application.RegisterEvent[map[string]string]("lora:netparams")
@@ -32,22 +34,18 @@ func main() {
 	commonSvc := service.NewCommonService()
 
 	// Create LoRa SDK with event-routing callbacks
-	loraCallbacks := &loraCallbackBridge{}
-	loraSDK := lorasdk.NewSDK(loraCallbacks)
+	loraBridge := loraservice.NewBridge()
+	loraSDK := lorasdk.NewSDK(loraBridge)
+	loraBridge.SetSDK(loraSDK)
 
 	loraDataSvc := service.NewLoRaDataService(loraSDK)
 	loraConfigSvc := service.NewLoRaConfigService(loraSDK)
 	canUpgradeSvc := service.NewCANUpgradeService(commonSvc)
 	canCommandSvc := service.NewCANCommandService(commonSvc)
 
-	// Store app reference in callbacks for event emission
-	loraCallbacks.appReady = func(app *application.App) {
-		loraCallbacks.app = app
-	}
-
 	app := application.New(application.Options{
-		Name:        "ModHandlerGo",
-		Description: "ModHandler PC Tool — 激光测距系统配套工具",
+		Name:        "激光测距工具",
+		Description: "激光测距系统配套工具",
 		Services: []application.Service{
 			application.NewService(commonSvc),
 			application.NewService(loraDataSvc),
@@ -63,8 +61,8 @@ func main() {
 		},
 	})
 
-	// Pass app to callback bridge
-	loraCallbacks.app = app
+	// Pass app to callback bridge for event emission
+	loraBridge.SetApp(app)
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "激光测距工具",
@@ -82,77 +80,5 @@ func main() {
 	err := app.Run()
 	if err != nil {
 		log.Fatal(err)
-	}
-}
-
-// loraCallbackBridge routes LoRa SDK callbacks to Wails events.
-type loraCallbackBridge struct {
-	app     *application.App
-	appReady func(*application.App)
-}
-
-func (b *loraCallbackBridge) OnConnState(state lorasdk.ConnState) {
-	if b.app != nil {
-		b.app.Event.Emit("lora:connstate", int(state))
-	}
-}
-
-func (b *loraCallbackBridge) OnFrame(nid uint32, payload []byte) {
-	if b.app != nil {
-		data := map[string]interface{}{
-			"nid":     nid,
-			"payload": payload,
-		}
-		b.app.Event.Emit("lora:frame", data)
-	}
-}
-
-func (b *loraCallbackBridge) OnDeviceFound(mac, deviceName, swVersion, fromIP string) {
-	if b.app != nil {
-		data := map[string]interface{}{
-			"mac":     mac,
-			"name":    deviceName,
-			"version": swVersion,
-			"ip":      fromIP,
-		}
-		b.app.Event.Emit("lora:device", data)
-	}
-}
-
-func (b *loraCallbackBridge) OnATResponse(response string) {
-	if b.app != nil {
-		b.app.Event.Emit("lora:atresponse", response)
-	}
-}
-
-func (b *loraCallbackBridge) OnNetParams(ip, mask, gateway string) {
-	if b.app != nil {
-		data := map[string]string{
-			"ip":      ip,
-			"mask":    mask,
-			"gateway": gateway,
-		}
-		b.app.Event.Emit("lora:netparams", data)
-	}
-}
-
-func (b *loraCallbackBridge) OnLog(message string, source lorasdk.LogSource) {
-	if b.app != nil {
-		b.app.Event.Emit("lora:log", message)
-	}
-}
-
-func (b *loraCallbackBridge) OnHexDump(prefix string, data []byte) {
-	if b.app != nil {
-		b.app.Event.Emit("lora:hexdump", map[string]interface{}{
-			"prefix": prefix,
-			"data":   data,
-		})
-	}
-}
-
-func (b *loraCallbackBridge) OnError(message string, source lorasdk.LogSource) {
-	if b.app != nil {
-		b.app.Event.Emit("lora:log", "[ERROR] "+message)
 	}
 }

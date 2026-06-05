@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
-import { Radio, Trash2, Save, Wifi, WifiOff, Zap, Crosshair, Box } from "lucide-react";
+import { Wifi, WifiOff, Zap, Crosshair, Box, Save, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { LoRaDataService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
@@ -19,15 +19,13 @@ function StatusDot({ active }: { active: boolean }) {
   );
 }
 
-function DataCard({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: string; unit?: string }) {
+function DataCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50">
       <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10 text-primary">{icon}</div>
       <div>
         <div className="text-[10px] text-muted-foreground leading-tight">{label}</div>
-        <div className="text-base font-mono font-semibold leading-tight text-foreground">
-          {value}<span className="text-[10px] text-muted-foreground ml-0.5">{unit}</span>
-        </div>
+        <div className="text-base font-mono font-semibold leading-tight text-foreground">{value}</div>
       </div>
     </div>
   );
@@ -40,6 +38,12 @@ function CounterBadge({ label, count, color }: { label: string; count: number; c
     </span>
   );
 }
+
+const TYPE_LABELS: Record<number, string> = {
+  0x01: "HANDLER",
+  0x02: "TEST",
+  0x03: "RSSI",
+};
 
 export function LoRaDataPage() {
   const { t } = useI18n();
@@ -68,26 +72,59 @@ export function LoRaDataPage() {
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [logLines]);
   useEffect(() => { if (historyRef.current) historyRef.current.scrollTop = historyRef.current.scrollHeight; }, [history]);
 
+  // Connection state
   useWailsEvent<number>("lora:connstate", (state) => {
     setConnected(state === 2);
-    const labels = ["连接", "连接中", "断开"];
+    const labels = ["已断开", "连接中", "已连接"];
     addLog(`连接状态: ${labels[state] || "未知"}`);
   });
 
-  useWailsEvent<any>("lora:scanner", (data) => {
-    if (data) {
-      setRxCount((c) => c + 1);
-      const ts = new Date().toLocaleTimeString("zh-CN", { hour12: false });
-      if (data.overbreakValid) setXAngle(`${(data.overbreak / 10).toFixed(1)}°`);
-      if (data.laserValid) setYAngle(`${data.laser}`);
-      setHistory((prev) => [...prev.slice(-499), {
-        time: ts, nid: "—", type: "Telemetry",
-        data: `X=${xAngle} Y=${yAngle} Laser=${data.laser || "--"}`,
-      }]);
+  // All frames: update history + NID + joystick
+  useWailsEvent<any>("lora:frame", (data) => {
+    if (!data) return;
+    setRxCount((c) => c + 1);
+    const ts = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+
+    let payload: number[] = [];
+    if (Array.isArray(data.payload)) {
+      payload = data.payload;
+    } else if (data.payload instanceof Uint8Array) {
+      payload = Array.from(data.payload);
+    } else if (typeof data.payload === "string") {
+      try { const bytes = atob(data.payload); payload = Array.from(bytes, (c) => c.charCodeAt(0)); } catch { payload = []; }
+    }
+
+    const type = payload[0] ?? 0xFF;
+    const typeLabel = TYPE_LABELS[type] || `0x${type.toString(16).toUpperCase().padStart(2, "0")}`;
+    const hexData = payload.slice(1).map((b: number) => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+
+    setHistory((prev) => [...prev.slice(-499), {
+      time: ts,
+      nid: data.nid ? `0x${Number(data.nid).toString(16).toUpperCase().padStart(8, "0")}` : "—",
+      type: typeLabel,
+      data: hexData,
+    }]);
+
+    // Update NID
+    if (data.nid) {
+      setNid(Number(data.nid).toString(16).toUpperCase().padStart(8, "0"));
+    }
+
+    // Parse joystick telemetry (type 0x01, body_len==8, trailing 0xFF)
+    if (type === 0x01 && payload.length >= 9) {
+      const body = payload.slice(1, 9);
+      if (body[5] === 0xFF && body[6] === 0xFF && body[7] === 0xFF) {
+        const xSigned = new Int16Array([body[0] << 8 | body[1]])[0];
+        const ySigned = new Int16Array([body[2] << 8 | body[3]])[0];
+        const btn = body[4] & 0x01;
+        setXAngle(`${(xSigned / 10).toFixed(1)}°`);
+        setYAngle(`${(ySigned / 10).toFixed(1)}°`);
+        setBtnState(btn === 0 ? "按下" : "松开");
+      }
     }
   });
 
-  useWailsEvent<string>("lora:log", (msg) => addLog(msg));
+  useWailsEvent<any>("lora:log", (msg) => addLog(msg));
 
   const handleConnect = async () => {
     try {
@@ -142,7 +179,6 @@ export function LoRaDataPage() {
 
       {/* Telemetry + Log */}
       <div className="grid grid-cols-[320px_1fr] gap-3">
-        {/* Telemetry */}
         <div className="space-y-3">
           <div className="p-3 rounded-lg bg-card border border-border/50">
             <div className="text-xs font-medium text-muted-foreground mb-3">{t("lora.joystick")}</div>
@@ -159,7 +195,6 @@ export function LoRaDataPage() {
           </div>
         </div>
 
-        {/* Raw Log */}
         <div className="p-3 rounded-lg bg-card border border-border/50 flex flex-col">
           <div className="text-xs font-medium text-muted-foreground mb-2">{t("lora.rawLog")}</div>
           <div ref={logRef} className="flex-1 h-48 overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed">

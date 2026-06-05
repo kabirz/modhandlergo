@@ -5,10 +5,6 @@
 // @ts-ignore: Unused imports
 import type { Events } from "@wailsio/runtime";
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import type * as lorasdk$0 from "../../../../kabirz/modhandlergo/internal/lorasdk/models.js";
-
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
@@ -16,11 +12,12 @@ declare module "@wailsio/runtime" {
             "can:log": string;
             "can:progress": number;
             "lora:atresponse": string;
-            "lora:connstate": lorasdk$0.ConnState;
+            "lora:connstate": number;
             "lora:device": { [_ in string]?: any };
+            "lora:frame": { [_ in string]?: any };
             "lora:log": string;
             "lora:netparams": { [_ in string]?: string };
-            "lora:scanner": lorasdk$0.ScannerData;
+            "lora:scanner": { [_ in string]?: any };
             "uart:log": string;
             "uart:progress": number;
         }

@@ -135,34 +135,37 @@ func PackScannerData(s ScannerData, buf []byte) int {
 	return ScannerFrameSize
 }
 
-// BuildFrame constructs a LoRa wire-protocol frame:
-// [0xAA][0x55][NID_BE(4)][LEN_BE(2)][DATA][CRC16_BE(2)][\r\n]
+// BuildFrame constructs a LoRa wire-protocol frame for sending.
+// Wire format: [NID_BE(4)][0xAA][0x55][NID_BE(4)][LEN_BE(2)][DATA][CRC16_BE(2)][\r\n]
+// The first 4 bytes are the gateway prefix (NID).
 func BuildFrame(nid uint32, data []byte) []byte {
 	dataLen := len(data)
-	totalLen := 2 + 4 + 2 + dataLen + 2 + 2 // hdr + nid + len + data + crc + crlf
+	// total: prefix(4) + hdr(2) + nid(4) + len(2) + data + crc(2) + crlf(2)
+	totalLen := 4 + 2 + 4 + 2 + dataLen + 2 + 2
 	buf := make([]byte, totalLen)
 
 	idx := 0
+	// Gateway NID prefix
+	binary.BigEndian.PutUint32(buf[idx:], nid)
+	idx += 4
+	// Frame header
 	buf[idx] = FrameHdr1
 	idx++
 	buf[idx] = FrameHdr2
 	idx++
+	// NID
 	binary.BigEndian.PutUint32(buf[idx:], nid)
 	idx += 4
+	// LEN
 	binary.BigEndian.PutUint16(buf[idx:], uint16(dataLen))
 	idx += 2
+	// DATA
 	if dataLen > 0 {
 		copy(buf[idx:], data)
 		idx += dataLen
 	}
-
-	// CRC16 over NID + LEN + DATA
-	crc := calcCRC16(buf[6 : 6+4+2+dataLen]) // NID+LEN+DATA starts at offset 6
-	// Actually CRC is over the entire content between headers and CRC
-	// Re-examine: CRC covers NID+LEN+DATA
-	crcData := buf[6 : 6+dataLen] // simplified
-	_ = crcData
-	crc = calcCRC16(buf[2 : 2+4+2+dataLen]) // from NID to end of DATA
+	// CRC16-CCITT over NID(4) + LEN(2) + DATA, seed=0
+	crc := crc16CCITT(0, buf[6:6+4+2+dataLen])
 	binary.BigEndian.PutUint16(buf[idx:], crc)
 	idx += 2
 	buf[idx] = '\r'
@@ -172,20 +175,15 @@ func BuildFrame(nid uint32, data []byte) []byte {
 	return buf
 }
 
-// calcCRC16 computes CRC16-CCITT (init 0xFFFF, polynomial 0xA001).
-func calcCRC16(data []byte) uint16 {
-	crc := uint16(0xFFFF)
+// crc16CCITT computes CRC16-CCITT matching the C implementation in loralib/crc16.c.
+// e and f are uint8_t (truncated to 8 bits), seed is uint16_t.
+func crc16CCITT(seed uint16, data []byte) uint16 {
 	for _, b := range data {
-		crc ^= uint16(b)
-		for i := 0; i < 8; i++ {
-			if crc&0x0001 != 0 {
-				crc = (crc >> 1) ^ 0xA001
-			} else {
-				crc >>= 1
-			}
-		}
+		e := uint8(seed ^ uint16(b))
+		f := uint8(e ^ (e << 4))
+		seed = (seed >> 8) ^ (uint16(f) << 8) ^ (uint16(f) << 3) ^ (uint16(f) >> 4)
 	}
-	return crc
+	return seed
 }
 
 // DeviceInfo represents a discovered LoRa gateway device.
