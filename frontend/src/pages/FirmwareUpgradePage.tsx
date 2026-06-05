@@ -38,6 +38,10 @@ export function FirmwareUpgradePage() {
     try {
       const devices = await CANUpgradeService.DetectCANDevices();
       setCanDevices(devices);
+      // Auto-select first device
+      if (devices.length > 0) {
+        setSelectedDevice(devices[0].toString());
+      }
       addLog(`检测到 ${devices.length} 个 CAN 设备`);
     } catch (err: any) {
       addLog(`错误: ${err.message || err}`);
@@ -48,6 +52,10 @@ export function FirmwareUpgradePage() {
     try {
       const ports = await CANUpgradeService.DetectSerialPorts();
       setSerialPorts(ports);
+      // Auto-select first port
+      if (ports.length > 0) {
+        setSelectedPort(ports[0].portName);
+      }
       addLog(`检测到 ${ports.length} 个串口`);
     } catch (err: any) {
       addLog(`错误: ${err.message || err}`);
