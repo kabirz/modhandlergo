@@ -1,7 +1,6 @@
 package lorasdk
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,162 +10,260 @@ import (
 )
 
 const (
-	udpSearchPort  = 5200
-	udpSearchTimeout = 3 * time.Second
+	udpPort    = 1566
+	udpTimeout = 5 * time.Second
 )
 
 // UDPClient handles UDP device discovery and AT command transport.
+// Uses USR1566 JSON protocol matching the USR-LG210-L gateway.
 type UDPClient struct {
-	mu      sync.Mutex
-	cb      Callbacks
-	conn    *net.UDPConn
-	localIP string
+	mu       sync.Mutex
+	cb       Callbacks
+	devMAC   string
+	devGWID  string
+	localIP  string // known local interface IP — re-use after first success
 }
 
-// NewUDPClient creates a new UDP client.
 func NewUDPClient(cb Callbacks) *UDPClient {
 	return &UDPClient{cb: cb}
 }
 
-// SetLocalIP sets the local network interface IP for broadcasting.
-func (u *UDPClient) SetLocalIP(ip string) {
-	u.localIP = ip
+func (u *UDPClient) SetLocalIP(ip string) { u.localIP = ip }
+
+// wrapJSON wraps a JSON object in USR1566 protocol: "USR1566" + JSON + "USR1566"
+func wrapJSON(root map[string]interface{}) ([]byte, error) {
+	jsonBytes, err := json.Marshal(root)
+	if err != nil {
+		return nil, err
+	}
+	return []byte("USR1566" + string(jsonBytes) + "USR1566"), nil
 }
 
-// SearchDevices broadcasts a discovery packet and collects responses.
-func (u *UDPClient) SearchDevices(ctx context.Context) {
-	u.cb.OnLog("开始搜索 LoRa 设备...", LogUDP)
+// unwrapJSON extracts JSON substring from a USR1566 wrapped response.
+func unwrapJSON(data string) string {
+	start := strings.Index(data, "{")
+	end := strings.LastIndex(data, "}")
+	if start < 0 || end < 0 || end <= start {
+		return ""
+	}
+	return data[start : end+1]
+}
 
-	// Get broadcast address
-	broadcastAddr := "255.255.255.255"
+// udpSendCore is the core UDP send+receive matching C's udp_worker.
+// Creates sockets bound to each local interface, broadcasts payload,
+// collects responses, closes all sockets.
+func (u *UDPClient) udpSendCore(payload []byte) []string {
+	// Collect local IPv4 addresses (matching C's GetAdaptersAddresses)
+	var localIPs []net.IP
+
 	if u.localIP != "" {
-		// Derive broadcast from local IP (simple: replace last octet with 255)
-		parts := strings.Split(u.localIP, ".")
-		if len(parts) == 4 {
-			parts[3] = "255"
-			broadcastAddr = strings.Join(parts, ".")
+		// Known interface — only use that one (C code: if (sdk->local_if_ip[0]))
+		ip := net.ParseIP(u.localIP)
+		if ip != nil && ip.To4() != nil {
+			localIPs = append(localIPs, ip.To4())
 		}
 	}
 
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", broadcastAddr, udpSearchPort))
-	if err != nil {
-		u.cb.OnError(fmt.Sprintf("UDP 地址解析失败: %v", err), LogUDP)
-		return
-	}
-
-	localAddr, err := net.ResolveUDPAddr("udp", ":0")
-	if err != nil {
-		u.cb.OnError(fmt.Sprintf("UDP 本地地址解析失败: %v", err), LogUDP)
-		return
-	}
-
-	conn, err := net.DialUDP("udp", localAddr, addr)
-	if err != nil {
-		u.cb.OnError(fmt.Sprintf("UDP 连接失败: %v", err), LogUDP)
-		return
-	}
-	defer conn.Close()
-
-	// Send discovery packet
-	searchCmd := "AT+SEARCH\r\n"
-	_, err = conn.Write([]byte(searchCmd))
-	if err != nil {
-		u.cb.OnError(fmt.Sprintf("UDP 搜索包发送失败: %v", err), LogUDP)
-		return
-	}
-
-	u.cb.OnLog("搜索包已发送，等待响应...", LogUDP)
-
-	// Collect responses
-	deadline := time.Now().Add(udpSearchTimeout)
-	conn.SetReadDeadline(deadline)
-
-	buf := make([]byte, 4096)
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		n, remoteAddr, err := conn.ReadFromUDP(buf)
+	if len(localIPs) == 0 {
+		// Enumerate all active IPv4 interfaces
+		ifaces, err := net.Interfaces()
 		if err != nil {
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				break
+			u.cb.OnError(fmt.Sprintf("枚举网卡失败: %v", err), LogUDP)
+			return nil
+		}
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+				continue
 			}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, addr := range addrs {
+				ipNet, ok := addr.(*net.IPNet)
+				if !ok || ipNet.IP.To4() == nil {
+					continue
+				}
+				localIPs = append(localIPs, ipNet.IP.To4())
+			}
+		}
+	}
+
+	if len(localIPs) == 0 {
+		u.cb.OnError("无可用网卡", LogUDP)
+		return nil
+	}
+
+	// Create a socket per interface, send broadcast, collect into socks slice
+	type sockInfo struct {
+		conn *net.UDPConn
+		ip   string
+	}
+	var socks []sockInfo
+	bcastAddr := &net.UDPAddr{IP: net.IPv4bcast, Port: udpPort}
+
+	for _, ip := range localIPs {
+		localAddr := &net.UDPAddr{IP: ip}
+		conn, err := net.ListenUDP("udp4", localAddr)
+		if err != nil {
 			continue
 		}
 
-		if n > 0 {
-			response := string(buf[:n])
-			u.parseDeviceResponse(response, remoteAddr.IP.String())
+		_, err = conn.WriteToUDP(payload, bcastAddr)
+		if err != nil {
+			conn.Close()
+			continue
 		}
+
+		socks = append(socks, sockInfo{conn: conn, ip: ip.String()})
+	}
+
+	if len(socks) == 0 {
+		u.cb.OnError("发送失败", LogUDP)
+		return nil
+	}
+
+	// Collect responses — stop after first valid response (matches C: got_response break)
+	var responses []string
+	buf := make([]byte, 2048)
+	deadline := time.Now().Add(udpTimeout)
+
+	gotResponse := false
+	for time.Now().Before(deadline) && !gotResponse {
+		for _, s := range socks {
+			s.conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+			n, remoteAddr, err := s.conn.ReadFromUDP(buf)
+			if err != nil || n == 0 {
+				continue
+			}
+
+			content := string(buf[:n])
+			responses = append(responses, content)
+
+			// Record the local interface IP for future use (C code: sdk->local_if_ip)
+			if u.localIP == "" {
+				u.localIP = s.ip
+				u.cb.OnLog(fmt.Sprintf("记录本端网卡: %s", s.ip), LogUDP)
+			}
+
+			// Record the remote device IP
+			if remoteAddr != nil {
+				u.cb.OnLog(fmt.Sprintf("响应来自: %s", remoteAddr.IP.String()), LogUDP)
+			}
+
+			gotResponse = true
+			break
+		}
+	}
+
+	// Close all sockets
+	for _, s := range socks {
+		s.conn.Close()
+	}
+
+	return responses
+}
+
+// SearchDevices broadcasts a discovery packet and collects responses.
+func (u *UDPClient) SearchDevices(ctx interface{}) {
+	u.cb.OnLog("开始搜索 LoRa 设备...", LogUDP)
+
+	// Reset local IP to force re-enumeration (matches C: sdk->local_if_ip[0] = '\0')
+	u.localIP = ""
+
+	payload := map[string]interface{}{
+		"VER":  "1.0",
+		"MSG":  "SEARCH",
+		"TYPE": "LORA",
+	}
+
+	data, err := wrapJSON(payload)
+	if err != nil {
+		u.cb.OnError(fmt.Sprintf("构建搜索包失败: %v", err), LogUDP)
+		return
+	}
+
+	responses := u.udpSendCore(data)
+	for _, resp := range responses {
+		u.processResponse(resp, "")
+	}
+
+	if len(responses) == 0 {
+		u.cb.OnLog("未找到设备 (超时5s)", LogUDP)
 	}
 
 	u.cb.OnLog("设备搜索完成", LogUDP)
 }
 
-// SendAT sends an AT command via UDP and waits for a response.
+// SendAT sends an AT command via UDP wrapped in USR1566 JSON protocol.
 func (u *UDPClient) SendAT(atCmd string, gatewayIP string) {
 	if !strings.HasSuffix(atCmd, "\r\n") {
 		atCmd += "\r\n"
 	}
 
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", gatewayIP, udpSearchPort))
-	if err != nil {
-		u.cb.OnError(fmt.Sprintf("UDP 地址解析失败: %v", err), LogUDP)
-		return
+	msgType := "SETPARA"
+	if strings.Contains(atCmd, "?") {
+		msgType = "GETPARA"
 	}
 
-	localAddr, err := net.ResolveUDPAddr("udp", ":0")
-	if err != nil {
-		u.cb.OnError(fmt.Sprintf("UDP 本地地址解析失败: %v", err), LogUDP)
-		return
+	mac := u.devMAC
+	if mac == "" {
+		mac = "D4AD20ED63C4"
 	}
 
-	conn, err := net.DialUDP("udp", localAddr, addr)
+	payload := map[string]interface{}{
+		"VER":  "1.0",
+		"MSG":  msgType,
+		"TYPE": "AT",
+		"CMD":  atCmd,
+		"USER": "admin",
+		"PSW":  "admin",
+		"MAC":  mac,
+	}
+
+	data, err := wrapJSON(payload)
 	if err != nil {
-		u.cb.OnError(fmt.Sprintf("UDP 连接失败: %v", err), LogUDP)
+		u.cb.OnError(fmt.Sprintf("构建 AT 命令失败: %v", err), LogUDP)
 		return
 	}
-	defer conn.Close()
 
 	u.cb.OnLog(fmt.Sprintf("UDP 发送: %s", strings.TrimSpace(atCmd)), LogUDP)
 
-	_, err = conn.Write([]byte(atCmd))
-	if err != nil {
-		u.cb.OnError(fmt.Sprintf("UDP AT 命令发送失败: %v", err), LogUDP)
-		return
-	}
-
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	buf := make([]byte, 4096)
-	n, _, err := conn.ReadFromUDP(buf)
-	if err != nil {
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			u.cb.OnError("AT 命令响应超时", LogUDP)
-		} else {
-			u.cb.OnError(fmt.Sprintf("UDP 读取失败: %v", err), LogUDP)
-		}
-		return
-	}
-
-	if n > 0 {
-		response := string(buf[:n])
-		u.cb.OnLog(fmt.Sprintf("UDP 响应: %s", strings.TrimSpace(response)), LogUDP)
-
-		// Try to parse as JSON (NETDEV response)
-		if strings.Contains(response, "NETDEV") {
-			u.parseNetParams(response)
-		} else {
-			u.cb.OnATResponse(response)
-		}
+	responses := u.udpSendCore(data)
+	for _, resp := range responses {
+		u.processResponse(resp, gatewayIP)
 	}
 }
 
 // GetNetParams queries network parameters from a gateway.
 func (u *UDPClient) GetNetParams(gatewayIP string) {
-	u.SendAT("AT+NETDEV?\r\n", gatewayIP)
+	if u.devMAC == "" {
+		u.cb.OnError("请先搜索设备", LogUDP)
+		return
+	}
+
+	payload := map[string]interface{}{
+		"VER":  "1.0",
+		"MSG":  "GETPARA",
+		"TYPE": "JSON",
+		"CMD":  "NETDEV",
+		"USER": "admin",
+		"PSW":  "admin",
+		"MAC":  u.devMAC,
+	}
+
+	data, err := wrapJSON(payload)
+	if err != nil {
+		u.cb.OnError(fmt.Sprintf("构建网络查询失败: %v", err), LogUDP)
+		return
+	}
+
+	u.cb.OnLog("查询网络参数...", LogUDP)
+
+	responses := u.udpSendCore(data)
+	for _, resp := range responses {
+		u.processResponse(resp, gatewayIP)
+	}
 }
 
 // QueryRSSI queries gateway RSSI and sends the response via TCP.
@@ -176,98 +273,84 @@ func (u *UDPClient) QueryRSSI(gatewayIP string, tcpClient *TCPClient, nid uint32
 		return
 	}
 
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", gatewayIP, udpSearchPort))
+	payload := map[string]interface{}{
+		"VER":  "1.0",
+		"MSG":  "GETPARA",
+		"TYPE": "AT",
+		"CMD":  "AT+NINFO?\r\n",
+		"USER": "admin",
+		"PSW":  "admin",
+		"MAC":  u.devMAC,
+	}
+
+	data, err := wrapJSON(payload)
 	if err != nil {
 		return
 	}
 
-	localAddr, _ := net.ResolveUDPAddr("udp", ":0")
-	conn, err := net.DialUDP("udp", localAddr, addr)
-	if err != nil {
-		return
-	}
-	defer conn.Close()
-
-	conn.Write([]byte("AT+RSSI?\r\n"))
-
-	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
-	buf := make([]byte, 256)
-	n, _, err := conn.ReadFromUDP(buf)
-	if err != nil {
-		return
-	}
-
-	// Parse RSSI response
-	response := string(buf[:n])
-	u.cb.OnLog(fmt.Sprintf("RSSI 响应: %s", strings.TrimSpace(response)), LogUDP)
-
-	// Simple parsing: extract SNR and RSSI values
-	// Expected format varies; send as raw response
-	// TODO: implement proper RSSI parsing per embedded protocol
-	_ = response
-}
-
-func (u *UDPClient) parseDeviceResponse(response string, fromIP string) {
-	// Try JSON format first
-	if strings.HasPrefix(response, "{") {
-		var result map[string]interface{}
-		if err := json.Unmarshal([]byte(response), &result); err == nil {
-			mac, _ := result["mac"].(string)
-			name, _ := result["name"].(string)
-			version, _ := result["sw"].(string)
-			u.cb.OnDeviceFound(mac, name, version, fromIP)
-			return
-		}
-	}
-
-	// Try plain text format (AT+SEARCH response)
-	// Format: mac,name,version
-	parts := strings.Split(strings.TrimSpace(response), ",")
-	if len(parts) >= 2 {
-		mac := parts[0]
-		name := ""
-		version := ""
-		if len(parts) >= 2 {
-			name = parts[1]
-		}
-		if len(parts) >= 3 {
-			version = parts[2]
-		}
-		u.cb.OnDeviceFound(mac, name, version, fromIP)
+	responses := u.udpSendCore(data)
+	for _, resp := range responses {
+		u.processResponse(resp, gatewayIP)
 	}
 }
 
-func (u *UDPClient) parseNetParams(response string) {
-	// Try JSON format
-	var result map[string]interface{}
-	if err := json.Unmarshal([]byte(response), &result); err == nil {
-		ip, _ := result["ip"].(string)
-		mask, _ := result["mask"].(string)
-		gateway, _ := result["gateway"].(string)
-		if ip != "" {
-			u.cb.OnNetParams(ip, mask, gateway)
-			return
-		}
+// processResponse parses a USR1566 wrapped JSON response and dispatches callbacks.
+func (u *UDPClient) processResponse(raw string, fromIP string) {
+	jsonStr := unwrapJSON(raw)
+	if jsonStr == "" {
+		u.cb.OnLog(raw, LogUDP)
+		return
 	}
 
-	// Try NETDEV text format
-	if strings.Contains(response, "NETDEV") {
-		// Parse NETDEV response
-		lines := strings.Split(response, "\n")
-		var ip, mask, gateway string
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "+NETDEV:") {
-				parts := strings.Split(strings.TrimPrefix(line, "+NETDEV:"), ",")
-				if len(parts) >= 3 {
-					ip = strings.TrimSpace(parts[0])
-					mask = strings.TrimSpace(parts[1])
-					gateway = strings.TrimSpace(parts[2])
+	var root map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &root); err != nil {
+		u.cb.OnLog(fmt.Sprintf("RX <- (JSON parse error): %s", jsonStr), LogUDP)
+		return
+	}
+
+	msg, _ := root["MSG"].(string)
+
+	switch msg {
+	case "ACK-SEARCH":
+		mac, _ := root["MAC"].(string)
+		dev, _ := root["DEV"].(string)
+		sver, _ := root["SVER"].(string)
+		if mac != "" {
+			u.devMAC = mac
+		}
+		u.cb.OnDeviceFound(mac, dev, sver, fromIP)
+		u.cb.OnLog("设备发现!", LogUDP)
+
+	case "ACK-GETPARA", "ACK-SETPARA":
+		cmdObj, ok := root["CMD"]
+		if !ok {
+			return
+		}
+		switch cmd := cmdObj.(type) {
+		case map[string]interface{}:
+			ip, _ := cmd["IP"].(string)
+			sm, _ := cmd["SM"].(string)
+			gw, _ := cmd["GW"].(string)
+			if ip != "" {
+				u.cb.OnNetParams(ip, sm, gw)
+				u.cb.OnLog("网络参数已接收", LogUDP)
+			}
+		case string:
+			u.cb.OnATResponse(cmd)
+			u.cb.OnLog(fmt.Sprintf("RX <- CMD: %s", cmd), LogUDP)
+
+			// Parse GWID from response
+			if idx := strings.Index(cmd, "+GWID:"); idx >= 0 {
+				val := strings.TrimSpace(cmd[idx+6:])
+				// Remove trailing "OK" or other status
+				if spIdx := strings.IndexAny(val, " \r\n"); spIdx >= 0 {
+					val = val[:spIdx]
+				}
+				if val != "" {
+					u.devGWID = val
+					u.cb.OnLog(fmt.Sprintf("GWID: %s", val), LogUDP)
 				}
 			}
-		}
-		if ip != "" {
-			u.cb.OnNetParams(ip, mask, gateway)
 		}
 	}
 }

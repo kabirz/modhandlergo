@@ -12,12 +12,28 @@ declare module "@wailsio/runtime" {
             "can:log": string;
             "can:progress": number;
             "lora:atresponse": string;
+            "lora:chfreq": string;
             "lora:connstate": number;
+            "lora:csq": string;
             "lora:device": { [_ in string]?: any };
+            "lora:dhcp": string;
             "lora:frame": { [_ in string]?: any };
+            "lora:gwid": string;
             "lora:log": string;
+            "lora:netgw": string;
+            "lora:netip": string;
+            "lora:netmask": string;
             "lora:netparams": { [_ in string]?: string };
+            "lora:nwmode": string;
+            "lora:option": string;
+            "lora:pwr": string;
             "lora:scanner": { [_ in string]?: any };
+            "lora:socka": string;
+            "lora:socken": string;
+            "lora:spd": string;
+            "lora:ttmode": string;
+            "lora:upwid": string;
+            "lora:wmode": string;
             "uart:log": string;
             "uart:progress": number;
         }

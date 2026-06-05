@@ -2,6 +2,7 @@ package loraservice
 
 import (
 	"math/rand"
+	"strings"
 
 	"github.com/kabirz/modhandlergo/internal/lorasdk"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -98,8 +99,109 @@ func (b *Bridge) OnDeviceFound(mac, deviceName, swVersion, fromIP string) {
 }
 
 // OnATResponse implements lorasdk.Callbacks.
+// Parses known AT responses and emits typed events (matching C ParseAtResponse).
 func (b *Bridge) OnATResponse(response string) {
 	b.emit("lora:atresponse", response)
+
+	s := strings.TrimSpace(response)
+
+	// Parse helper: "+PREFIX: value" -> value string
+	extract := func(prefix string) string {
+		idx := strings.Index(s, prefix)
+		if idx < 0 {
+			return ""
+		}
+		val := strings.TrimSpace(s[idx+len(prefix):])
+		if spIdx := strings.IndexAny(val, " \r\n"); spIdx >= 0 {
+			val = val[:spIdx]
+		}
+		return val
+	}
+
+	if v := extract("+NWMODE:"); v != "" {
+		b.emit("lora:nwmode", v)
+	}
+	if v := extract("+TTMODE:"); v != "" {
+		b.emit("lora:ttmode", v)
+	}
+	if v := extract("+WMODE:"); v != "" {
+		b.emit("lora:wmode", v)
+	}
+	if v := extract("+DHCP:"); v != "" {
+		b.emit("lora:dhcp", v)
+	}
+	if v := extract("+OPTION:"); v != "" {
+		b.emit("lora:option", v)
+	}
+	if v := extract("UPWID:"); v != "" {
+		b.emit("lora:upwid", "UPWID: "+v)
+	}
+	if v := extract("+GWIP:"); v != "" {
+		b.emit("lora:netip", v)
+	}
+	if v := extract("+MASK:"); v != "" {
+		b.emit("lora:netmask", v)
+	}
+	if v := extract("+GW:"); v != "" {
+		b.emit("lora:netgw", v)
+	}
+	if v := extract("+CSQ:"); v != "" {
+		b.emit("lora:csq", v)
+	}
+	if v := extract("+GWID:"); v != "" {
+		b.emit("lora:gwid", v)
+	}
+
+	// +CH<n>:<freq>
+	if idx := strings.Index(s, "+CH"); idx >= 0 && len(s) > idx+4 {
+		if colon := strings.Index(s[idx:], ":"); colon >= 0 {
+			v := strings.TrimSpace(s[idx+colon+1:])
+			if spIdx := strings.IndexAny(v, " \r\n"); spIdx >= 0 {
+				v = v[:spIdx]
+			}
+			if v != "" && v != "OK" {
+				b.emit("lora:chfreq", v)
+			}
+		}
+	}
+
+	// +SPD<n>:<spd>
+	if idx := strings.Index(s, "+SPD"); idx >= 0 && len(s) > idx+5 {
+		if colon := strings.Index(s[idx:], ":"); colon >= 0 {
+			v := strings.TrimSpace(s[idx+colon+1:])
+			if spIdx := strings.IndexAny(v, " \r\n"); spIdx >= 0 {
+				v = v[:spIdx]
+			}
+			if v != "" && v != "OK" {
+				b.emit("lora:spd", v)
+			}
+		}
+	}
+
+	// +PWR<n>:<pwr>
+	if idx := strings.Index(s, "+PWR"); idx >= 0 && len(s) > idx+5 {
+		if colon := strings.Index(s[idx:], ":"); colon >= 0 {
+			v := strings.TrimSpace(s[idx+colon+1:])
+			if spIdx := strings.IndexAny(v, " \r\n"); spIdx >= 0 {
+				v = v[:spIdx]
+			}
+			if v != "" && v != "OK" {
+				b.emit("lora:pwr", v)
+			}
+		}
+	}
+
+	// +SOCKA:<mode>,<ip>,<remote_port>,<local_port>
+	if idx := strings.Index(s, "+SOCKA:"); idx >= 0 {
+		val := strings.TrimSpace(s[idx+7:])
+		b.emit("lora:socka", val)
+	}
+
+	// +SOCKEN:<status>,<status>
+	if idx := strings.Index(s, "+SOCKEN:"); idx >= 0 {
+		val := strings.TrimSpace(s[idx+8:])
+		b.emit("lora:socken", val)
+	}
 }
 
 // OnNetParams implements lorasdk.Callbacks.

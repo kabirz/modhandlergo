@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Settings, Trash2, Search, RefreshCw, Wifi, WifiOff, Zap, Router, Globe, Radio, Sliders } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { LoRaConfigService } from "../../bindings/github.com/kabirz/modhandlergo/service";
+import { LoRaConfigService, CANUpgradeService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 // Compact button for inline use
 const Btn = ({ children, onClick, disabled, variant = "outline", title }: {
@@ -74,12 +74,44 @@ export function LoRaConfigPage() {
     addLog(`设备发现: MAC=${data?.mac}, 设备=${data?.name}, SW=${data?.version}, IP=${data?.ip}`);
   });
   useWailsEvent<string>("lora:atresponse", (resp) => addLog(resp));
+  useWailsEvent<string>("lora:gwid", (gwid) => setDevGwid(gwid));
   useWailsEvent<string>("lora:log", (msg) => addLog(msg));
   useWailsEvent<any>("lora:netparams", (params) => {
     if (params?.ip) setNetIP(params.ip);
     if (params?.mask) setNetMask(params.mask);
     if (params?.gateway) setNetGW(params.gateway);
     addLog(`网络参数: IP=${params?.ip}, 掩码=${params?.mask}, 网关=${params?.gateway}`);
+  });
+
+  // Parsed AT response events — update fields directly
+  useWailsEvent<string>("lora:nwmode", (v) => { const n = parseInt(v); if (!isNaN(n)) setNwmode(n); });
+  useWailsEvent<string>("lora:ttmode", (v) => { const n = parseInt(v); if (!isNaN(n)) setTtmode(n); });
+  useWailsEvent<string>("lora:dhcp", (v) => setDhcpText(v));
+  useWailsEvent<string>("lora:option", (v) => {
+    const opts = ["socket", "serial", "mqtt", "ali_cloud", "usr_cloud"];
+    const n = parseInt(v);
+    if (!isNaN(n) && n >= 0 && n < opts.length) setNetOption(opts[n]);
+  });
+  useWailsEvent<string>("lora:upwid", (v) => setUpwidText(v));
+  useWailsEvent<string>("lora:netip", (v) => setNetIP(v));
+  useWailsEvent<string>("lora:netmask", (v) => setNetMask(v));
+  useWailsEvent<string>("lora:netgw", (v) => setNetGW(v));
+  useWailsEvent<string>("lora:csq", (v) => setDevCsq(v));
+  useWailsEvent<string>("lora:chfreq", (v) => { const n = parseInt(v); if (!isNaN(n)) setFreq(n); });
+  useWailsEvent<string>("lora:spd", (v) => { const n = parseInt(v); if (!isNaN(n)) setSpeed(n); });
+  useWailsEvent<string>("lora:pwr", (v) => { const n = parseInt(v); if (!isNaN(n)) setPwr(n); });
+  useWailsEvent<string>("lora:socka", (v) => {
+    const parts = v.split(",");
+    if (parts.length >= 4) {
+      setSockaMode(parts[0]);
+      setSockaIP(parts[1]);
+      setSockaRPort(parts[2]);
+      setSockaLPort(parts[3]);
+    }
+  });
+  useWailsEvent<string>("lora:socken", (v) => {
+    const parts = v.split(",");
+    if (parts.length >= 1) setSocken(parts[0]);
   });
 
   const sendAT = async (cmd: string) => {
@@ -101,15 +133,28 @@ export function LoRaConfigPage() {
         <div className="p-3 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Settings className="h-3.5 w-3.5" />} title={t("cfg.transport")} />
           <div className="flex items-center gap-2 flex-wrap">
-            <Sel value={transport} onChange={(v) => setTransport(v as any)}
+            <Sel value={transport} onChange={(v) => {
+              setTransport(v as "udp" | "serial");
+              LoRaConfigService.SetATTransport(v === "serial" ? 1 : 0);
+            }}
               options={[{ value: "udp", label: t("cfg.udp") }, { value: "serial", label: t("cfg.serial") }]} className="w-28" />
             {transport === "udp" ? null : (
               <>
                 <Input value={serialPort} onChange={(e) => setSerialPort(e.target.value)} className="w-20 h-7 text-xs" placeholder="COM3" />
-                <Btn><RefreshCw className="h-2.5 w-2.5" /></Btn>
+                <Btn onClick={async () => {
+                  try { const ports = await CANUpgradeService.DetectSerialPorts(); addLog(`刷新串口: ${ports.length} 个`); } catch (err: any) { addLog(`错误: ${err.message || err}`); }
+                }}><RefreshCw className="h-2.5 w-2.5" /></Btn>
                 <Sel value={baudRate} onChange={setBaudRate} className="w-20"
                   options={["9600","19200","38400","57600","115200","230400","460800","921600"].map(b => ({ value: b, label: b }))} />
-                <Btn onClick={() => setSerialOpen(!serialOpen)} variant={serialOpen ? "destructive" : "default"}>
+                <Btn onClick={async () => {
+                  if (serialOpen) {
+                    await LoRaConfigService.SerialClose();
+                    setSerialOpen(false);
+                  } else {
+                    try { await LoRaConfigService.SerialOpen(serialPort, parseInt(baudRate)); setSerialOpen(true); }
+                    catch (err: any) { addLog(`错误: ${err.message || err}`); }
+                  }
+                }} variant={serialOpen ? "destructive" : "default"}>
                   {serialOpen ? <><WifiOff className="h-2.5 w-2.5 mr-0.5" />{t("cfg.close")}</> : <><Wifi className="h-2.5 w-2.5 mr-0.5" />{t("cfg.open")}</>}
                 </Btn>
                 <span className={`text-[10px] ${serialOpen ? "text-success font-medium" : "text-muted-foreground"}`}>
@@ -124,7 +169,7 @@ export function LoRaConfigPage() {
         <div className="p-3 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Search className="h-3.5 w-3.5" />} title={t("cfg.discovery")} />
           <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-            <Btn onClick={() => LoRaConfigService.SearchDevices()} variant="default"><Search className="h-2.5 w-2.5 mr-0.5" />{t("cfg.search")}</Btn>
+            <Btn onClick={() => LoRaConfigService.SearchDevices()}><Search className="h-2.5 w-2.5 mr-0.5" />{t("cfg.search")}</Btn>
             <Btn onClick={() => LoRaConfigService.GetNetParams(gatewayIP)}>{t("cfg.getNet")}</Btn>
             <Btn onClick={() => sendAT("AT+GWID?")}>{t("cfg.queryGwid")}</Btn>
             <Btn onClick={() => LoRaConfigService.Reboot(gatewayIP)}>{t("cfg.reboot")}</Btn>
