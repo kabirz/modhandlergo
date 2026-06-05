@@ -2,75 +2,78 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================
+   Light Theme — inspired by ccx
+   ============================================ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0.042 265.755);
-  --primary-foreground: oklch(0.985 0.002 265.755);
-  --secondary: oklch(0.965 0.001 265.755);
-  --secondary-foreground: oklch(0.205 0.042 265.755);
-  --muted: oklch(0.965 0.001 265.755);
-  --muted-foreground: oklch(0.556 0.012 265.755);
-  --accent: oklch(0.965 0.001 265.755);
-  --accent-foreground: oklch(0.205 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0.004 265.755);
-  --input: oklch(0.922 0.004 265.755);
-  --ring: oklch(0.708 0.013 265.755);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --background: #F8FAFC;        /* Slate-50 */
+  --foreground: #1E293B;        /* Slate-800 */
+  --card: #FFFFFF;
+  --card-foreground: #1E293B;
+  --popover: #FFFFFF;
+  --popover-foreground: #1E293B;
+  --primary: #6366F1;           /* Indigo */
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;         /* Slate-100 */
+  --secondary-foreground: #334155; /* Slate-700 */
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;  /* Slate-500 */
+  --accent: #EEF2FF;            /* Indigo-50 */
+  --accent-foreground: #3730A3; /* Indigo-800 */
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8F0;            /* Slate-200 */
+  --input: #E2E8F0;
+  --ring: #6366F1;
   --radius: 0.5rem;
-  --sidebar: oklch(0.205 0.042 265.755);
-  --sidebar-foreground: oklch(0.985 0.002 265.755);
-  --sidebar-primary: oklch(0.488 0.157 264.374);
-  --sidebar-primary-foreground: oklch(0.985 0.002 265.755);
-  --sidebar-accent: oklch(0.269 0.042 265.755);
-  --sidebar-accent-foreground: oklch(0.985 0.002 265.755);
-  --sidebar-border: oklch(0.269 0.042 265.755);
-  --sidebar-ring: oklch(0.439 0.023 265.755);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1E293B;
+  --sidebar-primary: #6366F1;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EEF2FF;
+  --sidebar-accent-foreground: #3730A3;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #6366F1;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --info: #3B82F6;
 }
 
+/* ============================================
+   Dark Theme — Dracula
+   https://draculatheme.com
+   ============================================ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0.042 265.755);
-  --secondary: oklch(0.269 0.042 265.755);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0.042 265.755);
-  --muted-foreground: oklch(0.708 0.013 265.755);
-  --accent: oklch(0.269 0.042 265.755);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.269 0.042 265.755);
-  --input: oklch(0.269 0.042 265.755);
-  --ring: oklch(0.439 0.023 265.755);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.145 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.157 264.374);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0.042 265.755);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0.042 265.755);
-  --sidebar-ring: oklch(0.439 0.023 265.755);
+  --background: #282A36;        /* Dracula Background */
+  --foreground: #F8F8F2;        /* Dracula Foreground */
+  --card: #343746;              /* Dracula CurrentLine */
+  --card-foreground: #F8F8F2;
+  --popover: #343746;
+  --popover-foreground: #F8F8F2;
+  --primary: #BD93F9;           /* Dracula Purple */
+  --primary-foreground: #282A36;
+  --secondary: #44475A;         /* Dracula Selection */
+  --secondary-foreground: #F8F8F2;
+  --muted: #44475A;
+  --muted-foreground: #6272A4;  /* Dracula Comment */
+  --accent: #44475A;
+  --accent-foreground: #F8F8F2;
+  --destructive: #FF5555;       /* Dracula Red */
+  --destructive-foreground: #F8F8F2;
+  --border: #44475A;
+  --input: #44475A;
+  --ring: #BD93F9;
+  --sidebar: #21222C;           /* Slightly darker than background */
+  --sidebar-foreground: #F8F8F2;
+  --sidebar-primary: #BD93F9;
+  --sidebar-primary-foreground: #282A36;
+  --sidebar-accent: #343746;
+  --sidebar-accent-foreground: #F8F8F2;
+  --sidebar-border: #44475A;
+  --sidebar-ring: #BD93F9;
+  --success: #50FA7B;           /* Dracula Green */
+  --warning: #F1FA8C;           /* Dracula Yellow */
+  --info: #8BE9FD;              /* Dracula Cyan */
 }
 
 @theme inline {
@@ -93,11 +96,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -106,6 +104,9 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -124,6 +125,7 @@
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     user-select: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
   #root {
     min-height: 100vh;
