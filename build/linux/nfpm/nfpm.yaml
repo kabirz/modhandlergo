@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "modhandlergo.exe"
+name: "laserrangetool"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.1.0"
 section: "default"
 priority: "extra"
-maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A ModHandlerGo application"
-vendor: "My Company"
-homepage: "https://wails.io"
-license: "MIT"
+maintainer: "Kabirz"
+description: "Laser ranging system PC tool — CAN bus debug, firmware upgrade, LoRa gateway"
+vendor: "Kabirz"
+homepage: "https://github.com/kabirz/modhandlergo"
+license: "Apache-2.0"
 release: "1"
 
 contents:
-  - src: "./bin/modhandlergo.exe"
-    dst: "/usr/local/bin/modhandlergo.exe"
+  - src: "./bin/modhandlergo"
+    dst: "/usr/local/bin/laserrangetool"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/modhandlergo.exe.png"
-  - src: "./build/linux/modhandlergo.exe.desktop"
-    dst: "/usr/share/applications/modhandlergo.exe.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/laserrangetool.png"
+  - src: "./build/linux/laserrangetool.desktop"
+    dst: "/usr/share/applications/laserrangetool.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

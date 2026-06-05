@@ -5,11 +5,11 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "A ModHandlerGo application",
-			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+			"CompanyName": "Kabirz",
+			"FileDescription": "Laser Range Tool - CAN bus debug, firmware upgrade, LoRa gateway",
+			"LegalCopyright": "(c) 2025-2026 Kabirz",
+			"ProductName": "LaserRangeTool",
+			"Comments": "Migrated from can-uart-tool to Go + Wails v3"
 		}
 	}
 }

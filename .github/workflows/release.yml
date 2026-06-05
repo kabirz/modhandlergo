@@ -1,0 +1,115 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: modhandlergo
+  GO_VERSION: "1.25"
+  NODE_VERSION: "20"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build + Package
+        run: |
+          wails3 generate bindings
+          wails3 task windows:package -- nsis
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: build/windows/nsis/*-installer.exe
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y rpm
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+      - name: Build + Package DEB
+        run: |
+          wails3 generate bindings
+          wails3 task linux:create:deb
+
+      - name: Build + Package RPM
+        run: wails3 task linux:create:rpm
+
+      - name: Upload DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: bin/*.deb
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-rpm
+          path: bin/*.rpm
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/windows-installer/*.exe
+            artifacts/linux-deb/*.deb
+            artifacts/linux-rpm/*.rpm
+          generate_release_notes: true
