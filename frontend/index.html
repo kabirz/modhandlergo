@@ -9,7 +9,7 @@
       // Prevent FOUC: apply saved theme before React mounts
       (function() {
         var t = localStorage.getItem('modhandler-theme');
-        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        if (t === 'dark') {
           document.documentElement.classList.add('dark');
         }
       })();

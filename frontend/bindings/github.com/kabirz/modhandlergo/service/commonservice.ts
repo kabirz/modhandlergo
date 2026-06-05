@@ -87,6 +87,7 @@ export function SetAdapterType(adapterType: number): $CancellablePromise<void> {
 
 /**
  * Startup initializes the default adapter.
+ * Deprecated: initialization now happens in constructor.
  */
 export function Startup(): $CancellablePromise<void> {
     return $Call.ByID(1548586743);

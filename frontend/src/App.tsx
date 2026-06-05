@@ -17,8 +17,7 @@ type ThemeMode = "light" | "dark";
 function getInitialTheme(): ThemeMode {
   const stored = localStorage.getItem("modhandler-theme") as ThemeMode | null;
   if (stored === "light" || stored === "dark") return stored;
-  // Default to system preference
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light"; // Default: light
 }
 
 function applyTheme(mode: ThemeMode) {

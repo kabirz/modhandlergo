@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/kabirz/modhandlergo/internal/candispatcher"
 	"github.com/kabirz/modhandlergo/internal/canmanager"
 	"github.com/kabirz/modhandlergo/internal/cancommand"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // AdapterInfo describes a CAN adapter type for the frontend.
@@ -28,7 +30,27 @@ type CommonService struct {
 
 // NewCommonService creates the common service with default adapter.
 func NewCommonService() *CommonService {
-	return &CommonService{}
+	s := &CommonService{}
+	// Initialize default adapter immediately (synchronous, runs in main thread)
+	adapters := canhal.AvailableAdapters()
+	if len(adapters) > 0 {
+		s.SetAdapterType(int(adapters[0]))
+	}
+	return s
+}
+
+// ServiceStartup is called by Wails v3 when the application starts.
+// Already initialized in constructor, but this satisfies the interface.
+func (s *CommonService) ServiceStartup(ctx context.Context, opts application.ServiceOptions) error {
+	return nil
+}
+
+// ServiceShutdown is called by Wails v3 when the application exits.
+func (s *CommonService) ServiceShutdown() error {
+	if s.backend != nil {
+		s.backend.Close()
+	}
+	return nil
 }
 
 // GetAdapterType returns the current adapter type.
@@ -124,6 +146,7 @@ func adapterName(a canhal.Adapter) string {
 }
 
 // Startup initializes the default adapter.
+// Deprecated: initialization now happens in constructor.
 func (s *CommonService) Startup() error {
 	adapters := canhal.AvailableAdapters()
 	if len(adapters) > 0 {
