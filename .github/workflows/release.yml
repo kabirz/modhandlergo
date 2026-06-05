@@ -33,11 +33,13 @@ jobs:
 
       - name: Install NSIS
         run: |
-          choco install nsis -y
-          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+          choco install nsis -y --no-progress
+          $nsisPath = "C:\Program Files (x86)\NSIS"
+          echo "$nsisPath" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
       - name: Build + Package
         run: |
+          $env:PATH = "C:\Program Files (x86)\NSIS;$env:PATH"
           wails3 generate bindings
           wails3 task windows:package -- nsis
 
@@ -63,7 +65,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev rpm
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libayatana-appindicator3-dev rpm
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
