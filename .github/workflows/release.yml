@@ -32,13 +32,14 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Install NSIS
-        run: choco install nsis -y
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
 
       - name: Build + Package
         run: |
           wails3 generate bindings
           wails3 task windows:package -- nsis
-        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -62,9 +63,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          sudo apt-get install -y rpm
+          sudo apt-get install -y libgtk-4-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev rpm
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
