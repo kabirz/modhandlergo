@@ -175,7 +175,7 @@ export function FirmwareUpgradePage() {
           <CardTitle>日志</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-48 overflow-y-auto bg-black/30 rounded-md p-3 font-mono text-xs text-green-400">
+          <div className="h-48 overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg">
             {logs.length === 0 ? (
               <p className="text-muted-foreground">等待操作...</p>
             ) : (

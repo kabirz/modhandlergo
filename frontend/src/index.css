@@ -37,6 +37,12 @@
   --success: #10B981;
   --warning: #F59E0B;
   --info: #3B82F6;
+  --terminal-bg: #F1F5F9;        /* Slate-100 */
+  --terminal-fg: #1E293B;        /* Slate-800 */
+  --terminal-rx: #059669;        /* Emerald-600 */
+  --terminal-tx: #2563EB;        /* Blue-600 */
+  --terminal-label: #D97706;     /* Amber-600 */
+  --terminal-header: #E2E8F0;    /* Slate-200 */
 }
 
 /* ============================================
@@ -74,6 +80,12 @@
   --success: #50FA7B;           /* Dracula Green */
   --warning: #F1FA8C;           /* Dracula Yellow */
   --info: #8BE9FD;              /* Dracula Cyan */
+  --terminal-bg: #191A21;       /* Darker than background */
+  --terminal-fg: #F8F8F2;       /* Dracula Foreground */
+  --terminal-rx: #50FA7B;       /* Dracula Green */
+  --terminal-tx: #8BE9FD;       /* Dracula Cyan */
+  --terminal-label: #F1FA8C;    /* Dracula Yellow */
+  --terminal-header: #21222C;   /* Same as sidebar */
 }
 
 @theme inline {
@@ -107,6 +119,12 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-terminal-bg: var(--terminal-bg);
+  --color-terminal-fg: var(--terminal-fg);
+  --color-terminal-rx: var(--terminal-rx);
+  --color-terminal-tx: var(--terminal-tx);
+  --color-terminal-label: var(--terminal-label);
+  --color-terminal-header: var(--terminal-header);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

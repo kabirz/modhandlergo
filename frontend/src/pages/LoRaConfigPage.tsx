@@ -186,7 +186,7 @@ export function LoRaConfigPage() {
             />
             <Button onClick={handleSendAT}>发送</Button>
           </div>
-          <div className="h-36 overflow-y-auto bg-black/30 rounded-md p-3 font-mono text-xs text-green-400">
+          <div className="h-36 overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg">
             {atResponse || <span className="text-muted-foreground">等待 AT 响应...</span>}
           </div>
         </CardContent>
@@ -198,7 +198,7 @@ export function LoRaConfigPage() {
           <CardTitle>日志</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-32 overflow-y-auto bg-black/30 rounded-md p-3 font-mono text-xs text-green-400">
+          <div className="h-32 overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg">
             {logs.map((log, i) => (
               <div key={i}>{log}</div>
             ))}

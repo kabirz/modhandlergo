@@ -158,10 +158,10 @@ export function CanCommandPage() {
         <CardContent>
           <div
             ref={monitorRef}
-            className="h-64 overflow-y-auto bg-black/30 rounded-md font-mono text-xs"
+            className="h-64 overflow-y-auto bg-terminal-bg rounded-md font-mono text-xs"
           >
             <table className="w-full">
-              <thead className="sticky top-0 bg-zinc-900">
+              <thead className="sticky top-0 bg-terminal-header">
                 <tr className="text-muted-foreground text-left">
                   <th className="px-2 py-1 w-20">时间</th>
                   <th className="px-2 py-1 w-8"></th>
@@ -180,11 +180,11 @@ export function CanCommandPage() {
                   </tr>
                 ) : (
                   frames.map((f, i) => (
-                    <tr key={i} className={f.isTX ? "text-blue-400" : "text-green-400"}>
+                    <tr key={i} className={f.isTX ? "text-terminal-tx" : "text-terminal-rx"}>
                       <td className="px-2 py-0.5">{f.timestamp}</td>
                       <td className="px-2 py-0.5">{f.isTX ? "TX" : "RX"}</td>
                       <td className="px-2 py-0.5">0x{f.id.toString(16).toUpperCase().padStart(3, "0")}</td>
-                      <td className="px-2 py-0.5 text-yellow-400">{f.label}</td>
+                      <td className="px-2 py-0.5 text-terminal-label">{f.label}</td>
                       <td className="px-2 py-0.5">
                         {f.data.map((b) => b.toString(16).toUpperCase().padStart(2, "0")).join(" ")}
                       </td>
