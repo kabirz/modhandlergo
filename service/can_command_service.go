@@ -3,16 +3,20 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/kabirz/modhandlergo/internal/cancommand"
+	"github.com/kabirz/modhandlergo/internal/canmanager"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// CANCommandService provides CAN frame send/receive and bus monitoring for the frontend.
+// CANCommandService provides CAN frame send/receive, bus monitoring,
+// and LoRa remote configuration via CAN (0x105/0x106).
 type CANCommandService struct {
 	app     *application.App
 	common  *CommonService
 	cmd     *cancommand.Command
+	canMgr  *canmanager.Manager
 }
 
 // NewCANCommandService creates a new CAN command service.
@@ -32,6 +36,10 @@ func (s *CANCommandService) ServiceStartup(ctx context.Context, opts application
 			}
 		})
 	}
+
+	// Create CAN manager for LoRa config response parsing
+	s.canMgr = s.common.CreateManager()
+
 	return nil
 }
 
@@ -39,6 +47,9 @@ func (s *CANCommandService) ServiceStartup(ctx context.Context, opts application
 func (s *CANCommandService) SetChannel(channel int) {
 	if s.cmd != nil {
 		s.cmd.SetChannel(channel)
+	}
+	if s.canMgr != nil {
+		s.canMgr.Connect(channel, 0)
 	}
 }
 
@@ -98,4 +109,42 @@ func (s *CANCommandService) GetQuickCommands() []cancommand.QuickCommand {
 // GetFrameLabel returns a human-readable label for a CAN frame ID.
 func (s *CANCommandService) GetFrameLabel(id uint32) string {
 	return cancommand.FrameIDLabel(id)
+}
+
+// --- LoRa config via CAN (0x105/0x106) ---
+
+// SendLoraCommand sends a LoRa configuration command via CAN frame 0x105.
+// dataHex is a hex-encoded string (e.g. "0102") for the payload bytes after cmd.
+// The payload format matches the embedded firmware mod-can.h protocol.
+func (s *CANCommandService) SendLoraCommand(cmd int, dataHex string) error {
+	if s.cmd == nil {
+		return fmt.Errorf("CAN 命令模块未初始化")
+	}
+	dataBytes := parseHexBytes(dataHex)
+	payload := append([]byte{byte(cmd)}, dataBytes...)
+	return s.cmd.SendFrame(0x105, payload, len(payload), false, false)
+}
+
+// parseHexBytes converts a hex string like "010203" to []byte.
+func parseHexBytes(hex string) []byte {
+	var result []byte
+	for i := 0; i+1 < len(hex); i += 2 {
+		b, err := strconv.ParseUint(hex[i:i+2], 16, 8)
+		if err == nil {
+			result = append(result, byte(b))
+		}
+	}
+	return result
+}
+
+
+
+// LoraQueryAll sends all query commands in sequence.
+func (s *CANCommandService) LoraQueryAll() error {
+	for _, cmd := range []int{0x02, 0x04, 0x06, 0x07, 0x09, 0x0B} {
+		if err := s.SendLoraCommand(cmd, ""); err != nil {
+			return err
+		}
+	}
+	return nil
 }

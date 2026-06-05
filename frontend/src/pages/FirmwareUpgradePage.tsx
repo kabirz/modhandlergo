@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useWailsEvent } from "@/hooks/useEvents";
-import { Upload } from "lucide-react";
+import { Upload, Trash2 } from "lucide-react";
 import { CANUpgradeService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 const baudRates = ["10K", "20K", "50K", "100K", "125K", "250K", "500K", "1M"];
@@ -222,7 +222,12 @@ export function FirmwareUpgradePage() {
       {/* Log */}
       <Card>
         <CardHeader>
-          <CardTitle>日志</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>日志</CardTitle>
+            <Button variant="ghost" size="icon" onClick={() => setLogs([])} title="清空日志">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-48 overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg">
