@@ -89,6 +89,14 @@ export function GetChannel(): $CancellablePromise<string> {
 }
 
 /**
+ * OpenFirmwareFile opens a native file dialog to select a firmware file.
+ * Returns the selected file path, or empty string if cancelled.
+ */
+export function OpenFirmwareFile(): $CancellablePromise<string> {
+    return $Call.ByID(548248430);
+}
+
+/**
  * SetChannel selects the upgrade channel ("can" or "uart").
  */
 export function SetChannel(ch: string): $CancellablePromise<void> {

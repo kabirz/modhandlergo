@@ -197,7 +197,14 @@ export function FirmwareUpgradePage() {
         <CardContent>
           <div className="flex items-center gap-3">
             <Input value={firmwarePath} onChange={(e) => setFirmwarePath(e.target.value)} placeholder="选择固件文件 (.bin)" className="flex-1" />
-            <Button variant="outline" onClick={() => setFirmwarePath("firmware.bin")}>{t("fw.browse")}</Button>
+            <Button variant="outline" onClick={async () => {
+              try {
+                const path = await CANUpgradeService.OpenFirmwareFile();
+                if (path) setFirmwarePath(path);
+              } catch (err: any) {
+                addLog(`错误: ${err.message || err}`);
+              }
+            }}>{t("fw.browse")}</Button>
           </div>
         </CardContent>
       </Card>

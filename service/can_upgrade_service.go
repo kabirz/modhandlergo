@@ -169,3 +169,20 @@ func (s *CANUpgradeService) ensureCANManager() *canmanager.Manager {
 	}
 	return s.canMgr
 }
+
+// OpenFirmwareFile opens a native file dialog to select a firmware file.
+// Returns the selected file path, or empty string if cancelled.
+func (s *CANUpgradeService) OpenFirmwareFile() (string, error) {
+	if s.app == nil {
+		return "", fmt.Errorf("app not initialized")
+	}
+	dialog := s.app.Dialog.OpenFile()
+	dialog.SetTitle("选择固件文件")
+	dialog.AddFilter("固件文件 (*.bin)", "*.bin")
+	dialog.AddFilter("所有文件 (*.*)", "*.*")
+	result, err := dialog.PromptForSingleSelection()
+	if err != nil {
+		return "", err
+	}
+	return result, nil
+}
