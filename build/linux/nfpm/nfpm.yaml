@@ -21,7 +21,7 @@ contents:
     dst: "/usr/local/bin/laserrangetool"
   - src: "./build/appicon.png"
     dst: "/usr/share/icons/hicolor/128x128/apps/laserrangetool.png"
-  - src: "./build/linux/laserrangetool.desktop"
+  - src: "./build/linux/modhandlergo.desktop"
     dst: "/usr/share/applications/laserrangetool.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
