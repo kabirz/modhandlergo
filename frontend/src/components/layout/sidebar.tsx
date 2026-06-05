@@ -35,16 +35,6 @@ interface SidebarProps {
 export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme }: SidebarProps) {
   return (
     <aside className="w-[200px] min-w-[200px] h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-colors duration-300">
-      {/* Logo / Title */}
-      <div className="px-4 py-5 border-b border-sidebar-border">
-        <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide">
-          ModHandlerGo
-        </h1>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          激光测距系统配套工具
-        </p>
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 py-2 px-2 space-y-1">
         {navItems.map((item) => {
@@ -68,27 +58,42 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme }: Sid
         })}
       </nav>
 
-      {/* Footer: Theme toggle + Version */}
+      {/* Footer: Theme + Version */}
       <div className="px-2 py-3 border-t border-sidebar-border space-y-2">
         {/* Theme Toggle */}
-        <button
-          onClick={onToggleTheme}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
-        >
-          {darkMode ? (
-            <Sun className="h-4 w-4 text-warning" />
-          ) : (
-            <Moon className="h-4 w-4 text-primary" />
-          )}
-          <span>{darkMode ? "亮色模式" : "暗色模式"}</span>
-        </button>
+        <div className="flex items-center gap-1 px-2">
+          <span className="text-[11px] text-muted-foreground shrink-0">主题：</span>
+          <button
+            onClick={() => { if (darkMode) onToggleTheme(); }}
+            className={cn(
+              "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition-colors",
+              !darkMode
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-foreground border border-input hover:bg-muted"
+            )}
+          >
+            <Sun className="h-3 w-3" />
+            亮色
+          </button>
+          <button
+            onClick={() => { if (!darkMode) onToggleTheme(); }}
+            className={cn(
+              "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition-colors",
+              darkMode
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-foreground border border-input hover:bg-muted"
+            )}
+          >
+            <Moon className="h-3 w-3" />
+            暗色
+          </button>
+        </div>
 
         {/* Version */}
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <span className="text-[11px] text-muted-foreground font-mono">
-            v{APP_VERSION}
+        <div className="px-2">
+          <span className="text-[11px] text-muted-foreground">
+            版本：v{APP_VERSION}
           </span>
-          <span className="text-[10px] text-muted-foreground">Go + Wails v3</span>
         </div>
       </div>
     </aside>

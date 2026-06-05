@@ -67,7 +67,7 @@ func main() {
 	loraCallbacks.app = app
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "ModHandlerGo",
+		Title:  "激光测距工具",
 		Width:  1280,
 		Height: 800,
 		Mac: application.MacWindow{
