@@ -26,7 +26,7 @@ const LogLine = React.memo(function LogLine({ text }: { text: string }) {
 export function FirmwareUpgradePage() {
   const { t } = useI18n();
   const [channel, setChannel] = useState<"can" | "uart">("can");
-  const [baudIndex, setBaudIndex] = useState(6);
+  const [baudIndex, setBaudIndex] = useState(5);
   const [serialBaud, setSerialBaud] = useState("115200");
   const [canDevices, setCanDevices] = useState<number[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");

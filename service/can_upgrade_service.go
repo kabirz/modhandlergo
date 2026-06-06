@@ -103,7 +103,7 @@ func (s *CANUpgradeService) DisconnectCAN() {
 	}
 	// Notify other pages that CAN has been disconnected
 	if s.app != nil {
-		s.app.Event.Emit("can:disconnected", nil)
+		s.app.Event.Emit("can:disconnected", 0)
 	}
 }
 

@@ -9,3 +9,4 @@ bin/
 *.syso
 .reasonix/
 reasonix.toml
+.codegraph/
