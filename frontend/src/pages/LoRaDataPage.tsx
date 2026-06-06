@@ -65,7 +65,8 @@ export function LoRaDataPage() {
   const historyRef = useRef<HTMLDivElement>(null);
 
   const addLog = useCallback((msg: string) => {
-    const ts = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+    const now = new Date();
+    const ts = `${now.toLocaleTimeString("zh-CN", { hour12: false })}.${String(now.getMilliseconds()).padStart(3, "0")}`;
     setLogLines((prev) => [...prev.slice(-500), `[${ts}] ${msg}`]);
   }, []);
 
@@ -83,7 +84,8 @@ export function LoRaDataPage() {
   useWailsEvent<any>("lora:frame", (data) => {
     if (!data) return;
     setRxCount((c) => c + 1);
-    const ts = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+    const now = new Date();
+    const ts = `${now.toLocaleTimeString("zh-CN", { hour12: false })}.${String(now.getMilliseconds()).padStart(3, "0")}`;
 
     let payload: number[] = [];
     if (Array.isArray(data.payload)) {

@@ -86,13 +86,24 @@ func (s *CANUpgradeService) ConnectCAN(channel int, baudIndex int) error {
 			s.app.Event.Emit("can:progress", pct)
 		}
 	})
-	return mgr.Connect(channel, canhal.BaudRate(baudIndex))
+	if err := mgr.Connect(channel, canhal.BaudRate(baudIndex)); err != nil {
+		return err
+	}
+	// Notify other pages (e.g. CAN Command) about the new CAN connection
+	if s.app != nil {
+		s.app.Event.Emit("can:connected", channel)
+	}
+	return nil
 }
 
 // DisconnectCAN disconnects from CAN.
 func (s *CANUpgradeService) DisconnectCAN() {
 	if s.canMgr != nil {
 		s.canMgr.Disconnect()
+	}
+	// Notify other pages that CAN has been disconnected
+	if s.app != nil {
+		s.app.Event.Emit("can:disconnected", nil)
 	}
 }
 

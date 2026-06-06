@@ -58,16 +58,41 @@ export function CanCommandPage() {
     }
   }, [frames, autoScroll]);
 
+  // Monitor state synced with firmware upgrade page
+  const [monitorActive, setMonitorActive] = useState(false);
+
   useEffect(() => {
-    CANCommandService.StartMonitor().catch(() => {});
+    // Don't auto-start monitor; wait for CAN connection from upgrade page
+    return () => {
+      if (monitorActive) {
+        CANCommandService.StopMonitor().catch(() => {});
+      }
+    };
   }, []);
+
+  // Sync CAN connection from firmware upgrade page
+  useWailsEvent<number>("can:connected", (channel) => {
+    CANCommandService.SetChannel(channel).catch(() => {});
+    CANCommandService.StartMonitor().catch(() => {});
+    setMonitorActive(true);
+  });
+
+  useWailsEvent<any>("can:disconnected", () => {
+    CANCommandService.StopMonitor().catch(() => {});
+    setMonitorActive(false);
+  });
+
+  const msTimestamp = () => {
+    const now = new Date();
+    return `${now.toLocaleTimeString("zh-CN", { hour12: false })}.${String(now.getMilliseconds()).padStart(3, "0")}`;
+  };
 
   useWailsEvent<any>("can:frame", (ev) => {
     const label = FRAME_LABELS[ev.id] || "";
     addFrame({
       id: ev.id, data: ev.data || [], dlc: ev.dlc || 0,
       isTX: ev.isTx || false, label,
-      timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }),
+      timestamp: msTimestamp(),
     });
   });
 
@@ -82,9 +107,9 @@ export function CanCommandPage() {
     const hexStr = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
     try {
       await CANCommandService.SendFrame(id, hexStr, bytes.length, isExtended, isRemote);
-      addFrame({ id, data: bytes, dlc: bytes.length, isTX: true, label: FRAME_LABELS[id] || "", timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }) });
+      addFrame({ id, data: bytes, dlc: bytes.length, isTX: true, label: FRAME_LABELS[id] || "", timestamp: msTimestamp() });
     } catch (err: any) {
-      addFrame({ id: 0, data: [], dlc: 0, isTX: true, label: `Send failed: ${err.message || err}`, timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }) });
+      addFrame({ id: 0, data: [], dlc: 0, isTX: true, label: `Send failed: ${err.message || err}`, timestamp: msTimestamp() });
     }
   };
 
@@ -219,8 +244,8 @@ export function CanCommandPage() {
           <div ref={monitorRef} className="overflow-y-auto bg-terminal-bg rounded-md font-mono text-[11px] terminal-selectable terminal-lg">
             <table className="w-full">
               <thead className="sticky top-0 bg-terminal-header">
-                <tr className="text-muted-foreground text-left">
-                  <th className="px-2 py-0.5 w-16">{t("can.time")}</th>
+                <tr className="text-muted-foreground text-left whitespace-nowrap">
+                  <th className="px-2 py-0.5 w-28">{t("can.time")}</th>
                   <th className="px-2 py-0.5 w-6"></th>
                   <th className="px-2 py-0.5 w-16">ID</th>
                   <th className="px-2 py-0.5 w-20">{t("can.label")}</th>
@@ -230,7 +255,7 @@ export function CanCommandPage() {
               </thead>
               <tbody>
                 {frames.map((f, i) => (
-                  <tr key={i} className={f.isTX ? "text-terminal-tx" : "text-terminal-rx"}>
+                  <tr key={i} className={`whitespace-nowrap ${f.isTX ? "text-terminal-tx" : "text-terminal-rx"}`}>
                     <td className="px-2 py-0.5">{f.timestamp}</td>
                     <td className="px-2 py-0.5">{f.isTX ? "TX" : "RX"}</td>
                     <td className="px-2 py-0.5">0x{f.id.toString(16).toUpperCase().padStart(3, "0")}</td>

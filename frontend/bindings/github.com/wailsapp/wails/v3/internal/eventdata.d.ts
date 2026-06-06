@@ -8,6 +8,8 @@ import type { Events } from "@wailsio/runtime";
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "can:connected": number;
+            "can:disconnected": any;
             "can:frame": { [_ in string]?: any };
             "can:log": string;
             "can:progress": number;

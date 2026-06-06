@@ -137,6 +137,19 @@ const dict: Record<string, Record<Lang, string>> = {
   "can.dlc":          { zh: "DLC",          en: "DLC" },
   "can.waitFrame":    { zh: "等待 CAN 帧...", en: "Waiting for CAN frames..." },
 
+  // About dialog
+  "about.title":       { zh: "关于",         en: "About" },
+  "about.appName":     { zh: "应用名称",     en: "App Name" },
+  "about.version":     { zh: "版本",         en: "Version" },
+  "about.techStack":   { zh: "技术栈",       en: "Tech Stack" },
+  "about.frontend":    { zh: "前端框架",     en: "Frontend" },
+  "about.canAdapter":  { zh: "CAN 适配器",   en: "CAN Adapter" },
+  "about.serial":      { zh: "串口",         en: "Serial" },
+  "about.protocol":    { zh: "协议",         en: "Protocol" },
+  "about.origProject": { zh: "原版项目",     en: "Original Project" },
+  "about.license":     { zh: "许可证",       en: "License" },
+  "about.ok":          { zh: "确定",         en: "OK" },
+
   // Common
   "common.error":     { zh: "错误",         en: "Error" },
   "common.loading":   { zh: "加载中...",     en: "Loading..." },

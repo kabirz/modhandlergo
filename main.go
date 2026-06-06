@@ -43,6 +43,8 @@ func init() {
 	application.RegisterEvent[string]("lora:atresponse")
 	application.RegisterEvent[map[string]string]("lora:netparams")
 	application.RegisterEvent[map[string]interface{}]("can:frame")
+	application.RegisterEvent[int]("can:connected")
+	application.RegisterEvent[any]("can:disconnected")
 }
 
 func main() {

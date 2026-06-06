@@ -30,47 +30,47 @@ function AboutDialog({ onClose }: { onClose: () => void }) {
       <div className="bg-card border border-border rounded-xl shadow-2xl w-[380px] p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">关于</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t("about.title")}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground cursor-pointer">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="space-y-3 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">应用名称</span>
+            <span className="text-muted-foreground">{t("about.appName")}</span>
             <span className="font-medium">激光测距工具</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">版本</span>
+            <span className="text-muted-foreground">{t("about.version")}</span>
             <span className="font-mono">v{APP_VERSION}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">技术栈</span>
+            <span className="text-muted-foreground">{t("about.techStack")}</span>
             <span>Go + Wails v3 + React</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">前端框架</span>
+            <span className="text-muted-foreground">{t("about.frontend")}</span>
             <span>TypeScript + Tailwind CSS v4</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">CAN 适配器</span>
+            <span className="text-muted-foreground">{t("about.canAdapter")}</span>
             <span>PCAN (Windows) / SocketCAN (Linux)</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">串口</span>
+            <span className="text-muted-foreground">{t("about.serial")}</span>
             <span>go.bug.st/serial (跨平台)</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">协议</span>
+            <span className="text-muted-foreground">{t("about.protocol")}</span>
             <span>USR1566 / LoRa / CAN 2.0</span>
           </div>
           <div className="border-t border-border pt-3 mt-3">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">原版项目</span>
+              <span className="text-muted-foreground">{t("about.origProject")}</span>
               <span className="font-mono text-xs">can-uart-tool</span>
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-muted-foreground">许可证</span>
+              <span className="text-muted-foreground">{t("about.license")}</span>
               <span>Apache-2.0</span>
             </div>
           </div>
@@ -78,7 +78,7 @@ function AboutDialog({ onClose }: { onClose: () => void }) {
         <div className="flex justify-end pt-2">
           <button onClick={onClose}
             className="px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 cursor-pointer">
-            确定
+            {t("about.ok")}
           </button>
         </div>
       </div>
@@ -174,7 +174,7 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme }: Sid
               onClick={() => setShowAbout(true)}
               className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
             >
-              <Info className="h-3 w-3" />关于
+              <Info className="h-3 w-3" />{t("about.title")}
             </button>
           </div>
         </div>
