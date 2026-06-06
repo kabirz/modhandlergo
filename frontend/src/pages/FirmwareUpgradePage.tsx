@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,12 @@ interface SerialPortInfo {
   friendlyName: string;
 }
 
+let logIdCounter = 0;
+
+const LogLine = React.memo(function LogLine({ text }: { text: string }) {
+  return <div>{text}</div>;
+});
+
 export function FirmwareUpgradePage() {
   const { t } = useI18n();
   const [channel, setChannel] = useState<"can" | "uart">("can");
@@ -30,11 +36,17 @@ export function FirmwareUpgradePage() {
   const [connected, setConnected] = useState(false);
   const [progress, setProgress] = useState(0);
   const [version, setVersion] = useState("");
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<{ id: number; text: string }[]>([]);
+  const logRef = useRef<HTMLDivElement>(null);
 
   const addLog = useCallback((msg: string) => {
-    setLogs((prev) => [...prev.slice(-200), msg]);
+    setLogs((prev) => [...prev.slice(-200), { id: logIdCounter++, text: msg }]);
   }, []);
+
+  // Auto-scroll log
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [logs]);
 
   useWailsEvent<string>("can:log", (msg) => addLog(msg));
   useWailsEvent<number>("can:progress", (pct) => setProgress(pct));
@@ -45,7 +57,6 @@ export function FirmwareUpgradePage() {
     try {
       const devices = await CANUpgradeService.DetectCANDevices();
       setCanDevices(devices);
-      // Auto-select first device
       if (devices.length > 0) {
         setSelectedDevice(devices[0].toString());
       }
@@ -59,7 +70,6 @@ export function FirmwareUpgradePage() {
     try {
       const ports = await CANUpgradeService.DetectSerialPorts();
       setSerialPorts(ports);
-      // Auto-select first port
       if (ports.length > 0) {
         setSelectedPort(ports[0].portName);
       }
@@ -167,8 +177,8 @@ export function FirmwareUpgradePage() {
               <>
                 <Select value={selectedDevice} onChange={(e) => setSelectedDevice(e.target.value)} className="w-44">
                   <option value="">{t("fw.selectDev")}</option>
-                  {canDevices.map((d, i) => (
-                    <option key={i} value={d.toString()}>Channel 0x{d.toString(16)}</option>
+                  {canDevices.map((d) => (
+                    <option key={d} value={d.toString()}>Channel 0x{d.toString(16)}</option>
                   ))}
                 </Select>
                 <Select value={baudIndex.toString()} onChange={(e) => setBaudIndex(Number(e.target.value))} className="w-24">
@@ -182,8 +192,8 @@ export function FirmwareUpgradePage() {
               <>
                 <Select value={selectedPort} onChange={(e) => setSelectedPort(e.target.value)} className="w-44">
                   <option value="">{t("fw.selectPort")}</option>
-                  {serialPorts.map((p: SerialPortInfo, i: number) => (
-                    <option key={i} value={p.portName}>{p.friendlyName || p.portName}</option>
+                  {serialPorts.map((p: SerialPortInfo) => (
+                    <option key={p.portName} value={p.portName}>{p.friendlyName || p.portName}</option>
                   ))}
                 </Select>
                 <Select value={serialBaud} onChange={(e) => setSerialBaud(e.target.value)} className="w-24">
@@ -248,11 +258,11 @@ export function FirmwareUpgradePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg terminal-selectable">
+          <div ref={logRef} className="overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg terminal-selectable">
             {logs.length === 0 ? (
               <p className="text-muted-foreground">{t("fw.waitOp")}</p>
             ) : (
-              logs.map((log, i) => <div key={i}>{log}</div>)
+              logs.map((log) => <LogLine key={log.id} text={log.text} />)
             )}
           </div>
         </CardContent>

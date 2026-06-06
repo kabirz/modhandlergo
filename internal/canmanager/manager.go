@@ -8,15 +8,16 @@ import (
 
 	"github.com/kabirz/modhandlergo/internal/canhal"
 	"github.com/kabirz/modhandlergo/internal/candispatcher"
+	"github.com/kabirz/modhandlergo/internal/upgrade"
 )
 
 // Manager handles CAN firmware upgrade operations: connect, version query,
 // board reboot, and OTA firmware flashing.
 type Manager struct {
-	mu         sync.Mutex
-	backend    canhal.Backend
-	dispatcher *candispatcher.Dispatcher
-	channel    int
+	mu          sync.Mutex
+	backend     canhal.Backend
+	dispatcher  *candispatcher.Dispatcher
+	channel     int
 	virtualMode bool
 
 	onLog      func(string)
@@ -48,10 +49,66 @@ func (m *Manager) log(msg string) {
 	}
 }
 
-func (m *Manager) progress(pct int) {
-	if m.onProgress != nil {
-		m.onProgress(pct)
+// --- upgrade.Transport implementation ---
+
+// SendCommand implements upgrade.Transport for CAN.
+func (m *Manager) SendCommand(cmd uint32, param uint32) error {
+	var data [8]byte
+	EncodeCANFrameData(CANFrameData{Code: cmd, Val: param}, data[:])
+
+	frame := &canhal.Frame{
+		ID:    PlatformRx,
+		DLC:   8,
+		Data:  data,
+		Flags: canhal.FlagStandard,
 	}
+	return m.backend.Write(frame)
+}
+
+// SendData implements upgrade.Transport for CAN.
+func (m *Manager) SendData(data []byte) error {
+	var frameData [8]byte
+	copy(frameData[:], data)
+
+	frame := &canhal.Frame{
+		ID:    FWDataRx,
+		DLC:   8,
+		Data:  frameData,
+		Flags: canhal.FlagStandard,
+	}
+	return m.backend.Write(frame)
+}
+
+// WaitForResponse implements upgrade.Transport for CAN.
+func (m *Manager) WaitForResponse(timeout time.Duration) (uint32, uint32, error) {
+	if m.dispatcher == nil {
+		return 0, 0, fmt.Errorf("dispatcher not initialized")
+	}
+
+	frame, err := m.dispatcher.WaitFrame(PlatformTx, timeout)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	d := DecodeCANFrameData(frame.Data[:])
+	return d.Code, d.Val, nil
+}
+
+// IsConnected implements upgrade.Transport for CAN.
+func (m *Manager) IsConnected() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.channel != canhal.InvalidChannel
+}
+
+// --- Connection management ---
+
+// requireConnected checks if CAN is connected, returning an error if not.
+func (m *Manager) requireConnected() error {
+	if m.channel == canhal.InvalidChannel {
+		return fmt.Errorf("CAN disconnected, please reconnect")
+	}
+	return nil
 }
 
 // Connect establishes a CAN connection on the given channel and baud rate.
@@ -112,102 +169,73 @@ func (m *Manager) Disconnect() {
 	m.virtualMode = false
 }
 
-// IsConnected returns whether the CAN is connected.
-func (m *Manager) IsConnected() bool {
-	return m.channel != canhal.InvalidChannel
-}
-
 // GetChannel returns the current channel or InvalidChannel.
 func (m *Manager) GetChannel() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.channel
 }
 
 // GetFirmwareVersion queries the board firmware version via CAN.
 func (m *Manager) GetFirmwareVersion() (uint32, error) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.channel == canhal.InvalidChannel {
-		return 0, fmt.Errorf("CAN disconnected, please reconnect")
+	err := m.requireConnected()
+	if err != nil {
+		m.mu.Unlock()
+		return 0, err
 	}
-
 	if m.virtualMode {
+		m.mu.Unlock()
 		m.log("Firmware version: v1.0.0 (virtual CAN)")
 		return 0x01000000, nil
 	}
+	m.mu.Unlock()
 
-	// Send version query
-	var data [8]byte
-	EncodeCANFrameData(CANFrameData{Code: CmdVersion}, data[:])
-
-	frame := &canhal.Frame{
-		ID:    PlatformRx,
-		DLC:   8,
-		Data:  data,
-		Flags: canhal.FlagStandard,
-	}
-	if err := m.backend.Write(frame); err != nil {
-		return 0, fmt.Errorf("CAN send failed")
-	}
-
-	// Wait for response
-	resp, err := m.waitForResponse(5 * time.Second)
+	version, err := upgrade.GetVersion(m)
 	if err != nil {
-		return 0, fmt.Errorf("CAN read failed, timeout")
+		return 0, err
 	}
-
-	if resp.Code == FWCodeVersion {
-		version := resp.Val
-		m.log(fmt.Sprintf("Firmware version: v%d.%d.%d",
-			(version>>24)&0xFF, (version>>16)&0xFF, (version>>8)&0xFF))
-		return version, nil
-	}
-
-	return 0, fmt.Errorf("CAN read failed, data error")
+	m.log(fmt.Sprintf("Firmware version: %s", upgrade.FormatVersion(version)))
+	return version, nil
 }
 
 // BoardReboot sends a reboot command to the board.
 func (m *Manager) BoardReboot() error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.channel == canhal.InvalidChannel {
-		return fmt.Errorf("CAN disconnected, please reconnect")
+	err := m.requireConnected()
+	if err != nil {
+		m.mu.Unlock()
+		return err
 	}
-
 	if m.virtualMode {
+		m.mu.Unlock()
 		m.log("Virtual board reboot successful")
 		return nil
 	}
+	m.mu.Unlock()
 
-	var data [8]byte
-	EncodeCANFrameData(CANFrameData{Code: CmdReboot}, data[:])
-
-	frame := &canhal.Frame{
-		ID:    PlatformRx,
-		DLC:   8,
-		Data:  data,
-		Flags: canhal.FlagStandard,
-	}
-	if err := m.backend.Write(frame); err != nil {
-		return fmt.Errorf("CAN send failed")
-	}
-	return nil
+	return upgrade.Reboot(m)
 }
 
 // FirmwareUpgrade performs a complete firmware upgrade over CAN.
 func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 	m.mu.Lock()
-	if m.channel == canhal.InvalidChannel {
-		m.mu.Unlock()
-		return fmt.Errorf("CAN disconnected, please reconnect")
-	}
+	err := m.requireConnected()
+	virtualMode := m.virtualMode
 	m.mu.Unlock()
 
-	if m.virtualMode {
+	if err != nil {
+		return err
+	}
+
+	if virtualMode {
 		return m.virtualFirmwareUpgrade(filePath)
 	}
-	return m.halFirmwareUpgrade(filePath, testMode)
+
+	return upgrade.RunUpgrade(m, filePath, testMode, 0x00, &upgrade.Callbacks{
+		OnLog:      m.onLog,
+		OnProgress: m.onProgress,
+	})
 }
 
 // DetectDevices delegates to the CAN backend to detect available devices.
@@ -234,132 +262,6 @@ func (m *Manager) GetBackend() canhal.Backend {
 // GetDispatcher returns the current dispatcher.
 func (m *Manager) GetDispatcher() *candispatcher.Dispatcher {
 	return m.dispatcher
-}
-
-func (m *Manager) waitForResponse(timeout time.Duration) (*CANFrameData, error) {
-	if m.dispatcher == nil {
-		return nil, fmt.Errorf("dispatcher not initialized")
-	}
-
-	frame, err := m.dispatcher.WaitFrame(PlatformTx, timeout)
-	if err != nil {
-		return nil, err
-	}
-
-	d := DecodeCANFrameData(frame.Data[:])
-	return &d, nil
-}
-
-func (m *Manager) halFirmwareUpgrade(filePath string, testMode bool) error {
-	// Open firmware file
-	f, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("cannot open file: %s", filePath)
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("cannot get file info")
-	}
-	fileSize := fi.Size()
-	m.log(fmt.Sprintf("Starting firmware upgrade, size: %d bytes", fileSize))
-
-	// Send start update command with file size
-	var data [8]byte
-	EncodeCANFrameData(CANFrameData{Code: CmdStartUpdate, Val: uint32(fileSize)}, data[:])
-
-	frame := &canhal.Frame{
-		ID:    PlatformRx,
-		DLC:   8,
-		Data:  data,
-		Flags: canhal.FlagStandard,
-	}
-	if err := m.backend.Write(frame); err != nil {
-		return fmt.Errorf("send firmware size failed")
-	}
-
-	// Wait for flash erase
-	resp, err := m.waitForResponse(15 * time.Second)
-	if err != nil {
-		return fmt.Errorf("flash erase timeout")
-	}
-	if resp.Code != FWCodeOffset || resp.Val != 0 {
-		return fmt.Errorf("flash erase failed: code(%d), offset(%d)", resp.Code, resp.Val)
-	}
-
-	// Send firmware data 8 bytes at a time
-	var bytesSent int64
-	buf := make([]byte, 8)
-	frame.ID = FWDataRx
-
-	for {
-		n, err := f.Read(buf)
-		if err != nil || n == 0 {
-			break
-		}
-
-		copy(frame.Data[:], buf)
-		frame.DLC = uint8(n)
-		// Zero-fill remaining bytes
-		for i := n; i < 8; i++ {
-			frame.Data[i] = 0
-		}
-
-		if err := m.backend.Write(frame); err != nil {
-			return fmt.Errorf("send file data failed")
-		}
-
-		bytesSent += int64(n)
-
-		// Every 64 bytes or at end, check acknowledgment
-		if bytesSent%64 == 0 || bytesSent == fileSize {
-			m.progress(int(bytesSent * 100 / fileSize))
-
-			resp, err := m.waitForResponse(5 * time.Second)
-			if err != nil {
-				return fmt.Errorf("firmware update timeout")
-			}
-			if resp.Code == FWCodeSuccess && resp.Val == uint32(bytesSent) {
-				break
-			}
-			if resp.Code != FWCodeOffset {
-				return fmt.Errorf("firmware upgrade failed: code(%d), offset(%d)", resp.Code, resp.Val)
-			}
-		}
-	}
-
-	m.progress(100)
-
-	// Send confirm command
-	frame.ID = PlatformRx
-	frame.DLC = 8
-	frame.Flags = canhal.FlagStandard
-	confirmVal := uint32(1)
-	if testMode {
-		confirmVal = 0
-	}
-	EncodeCANFrameData(CANFrameData{Code: CmdConfirm, Val: confirmVal}, frame.Data[:])
-
-	if err := m.backend.Write(frame); err != nil {
-		return fmt.Errorf("firmware send confirm failed")
-	}
-
-	// Wait for confirmation
-	resp, err = m.waitForResponse(30 * time.Second)
-	if err != nil {
-		return fmt.Errorf("firmware confirm timeout")
-	}
-
-	if resp.Code == FWCodeConfirm && resp.Val == 0x55AA55AA {
-		m.log(fmt.Sprintf("File %s upload complete. Click reboot, board will restart within 45-60 seconds", filePath))
-		return nil
-	}
-	if resp.Code == FWCodeTransferErr {
-		return fmt.Errorf("firmware update failed")
-	}
-
-	return fmt.Errorf("firmware confirm failed: code(%d), val(0x%08X)", resp.Code, resp.Val)
 }
 
 func (m *Manager) virtualFirmwareUpgrade(filePath string) error {
@@ -402,4 +304,8 @@ func (m *Manager) virtualFirmwareUpgrade(filePath string) error {
 	return nil
 }
 
-
+func (m *Manager) progress(pct int) {
+	if m.onProgress != nil {
+		m.onProgress(pct)
+	}
+}

@@ -63,9 +63,10 @@ export function LoRaConfigPage() {
   const [freq, setFreq] = useState(4700);
   const [speed, setSpeed] = useState(7);
   const [atCmd, setAtCmd] = useState("AT+");
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<{ id: number; text: string }[]>([]);
+  let logIdCounter = 0;
 
-  const addLog = useCallback((msg: string) => { setLogs((prev) => [...prev.slice(-200), msg]); }, []);
+  const addLog = useCallback((msg: string) => { setLogs((prev) => [...prev.slice(-200), { id: logIdCounter++, text: msg }]); }, []);
 
   useWailsEvent<any>("lora:device", (data) => {
     if (data?.mac) setDevMac(data.mac);
@@ -329,7 +330,7 @@ export function LoRaConfigPage() {
           </Button>
         </div>
         <div className="overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed terminal-selectable">
-          {logs.length === 0 ? <span className="text-muted-foreground/50">{t("cfg.waitResp")}</span> : logs.map((l, i) => <div key={i}>{l}</div>)}
+          {logs.length === 0 ? <span className="text-muted-foreground/50">{t("cfg.waitResp")}</span> : logs.map((l) => <div key={l.id}>{l.text}</div>)}
         </div>
       </div>
     </div>

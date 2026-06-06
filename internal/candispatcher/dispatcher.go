@@ -29,6 +29,9 @@ type Dispatcher struct {
 	waitMu  sync.Mutex
 
 	running atomic.Bool
+
+	// Pool for reusing subscriber callback slices in readLoop.
+	cbPool sync.Pool
 }
 
 // New creates a new Dispatcher for the given CAN backend.
@@ -37,6 +40,12 @@ func New(backend canhal.Backend) *Dispatcher {
 		backend:     backend,
 		subscribers: make(map[uint64]func(*canhal.Frame)),
 		waitCh:      make(chan *canhal.Frame, 1),
+		cbPool: sync.Pool{
+			New: func() interface{} {
+				s := make([]func(*canhal.Frame), 0, 8)
+				return &s
+			},
+		},
 	}
 }
 
@@ -142,14 +151,22 @@ func (d *Dispatcher) readLoop(ctx context.Context) {
 		}
 
 		// 2. Fan out to all async subscribers (copy under RLock, invoke outside)
+		//    Use sync.Pool to reuse the callback slice across iterations.
+		sp := d.cbPool.Get().(*[]func(*canhal.Frame))
+		cbs := (*sp)[:0]
+
 		d.mu.RLock()
-		cbs := make([]func(*canhal.Frame), 0, len(d.subscribers))
 		for _, cb := range d.subscribers {
 			cbs = append(cbs, cb)
 		}
 		d.mu.RUnlock()
+
 		for _, cb := range cbs {
 			cb(frame)
 		}
+
+		// Return the slice to the pool (reset length but keep capacity).
+		*sp = cbs
+		d.cbPool.Put(sp)
 	}
 }

@@ -36,6 +36,8 @@ const dict: Record<string, Record<Lang, string>> = {
   "lora.xAngle":      { zh: "X 角度",       en: "X Angle" },
   "lora.yAngle":      { zh: "Y 角度",       en: "Y Angle" },
   "lora.btnState":    { zh: "按键状态",     en: "Button" },
+  "lora.btnPressed":  { zh: "按下",         en: "Pressed" },
+  "lora.btnReleased": { zh: "抬起",         en: "Released" },
   "lora.rawLog":      { zh: "原始日志",     en: "Raw Log" },
   "lora.waitLog":     { zh: "等待日志...",   en: "Waiting for logs..." },
   "lora.operation":   { zh: "操作",         en: "Operation" },

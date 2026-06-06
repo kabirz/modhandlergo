@@ -1,14 +1,16 @@
+// Package uartmanager provides serial port firmware upgrade functionality.
 package uartmanager
 
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	serial "go.bug.st/serial"
+
+	"github.com/kabirz/modhandlergo/internal/upgrade"
 )
 
 // Manager handles UART serial port firmware upgrade operations.
@@ -20,6 +22,9 @@ type Manager struct {
 
 	onLog      func(string)
 	onProgress func(int)
+
+	// Reusable read buffer for waitForResponse (avoids per-call allocation).
+	readBuf [256]byte
 }
 
 // New creates a new UART Manager.
@@ -51,6 +56,115 @@ func (m *Manager) progress(pct int) {
 	}
 }
 
+// --- upgrade.Transport implementation ---
+
+// SendCommand implements upgrade.Transport for UART.
+func (m *Manager) SendCommand(cmd uint32, param uint32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.port == nil {
+		return fmt.Errorf("serial port not connected")
+	}
+
+	cmdData := upgrade.EncodeCommand(cmd, param)
+	frame := make([]byte, 32)
+	frameLen, err := BuildFrame(FrameTypeCmd, cmdData[:], frame)
+	if err != nil {
+		return fmt.Errorf("build command frame failed: %w", err)
+	}
+
+	m.port.ResetInputBuffer()
+	if _, err := m.port.Write(frame[:frameLen]); err != nil {
+		return fmt.Errorf("send command failed: %w", err)
+	}
+	return nil
+}
+
+// SendData implements upgrade.Transport for UART.
+func (m *Manager) SendData(data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.port == nil {
+		return fmt.Errorf("serial port not connected")
+	}
+
+	frame := make([]byte, 32)
+	frameLen, err := BuildFrame(FrameTypeData, data, frame)
+	if err != nil {
+		return fmt.Errorf("build data frame failed: %w", err)
+	}
+
+	if _, err := m.port.Write(frame[:frameLen]); err != nil {
+		return fmt.Errorf("send data failed: %w", err)
+	}
+	return nil
+}
+
+// WaitForResponse implements upgrade.Transport for UART.
+// Uses the reusable readBuf field to avoid per-call allocation.
+func (m *Manager) WaitForResponse(timeout time.Duration) (uint32, uint32, error) {
+	m.mu.Lock()
+	if m.port == nil {
+		m.mu.Unlock()
+		return 0, 0, fmt.Errorf("serial port not connected")
+	}
+	m.mu.Unlock()
+
+	var bufPos int
+	deadline := time.Now().Add(timeout)
+	buf := m.readBuf[:]
+
+	for time.Now().Before(deadline) {
+		m.mu.Lock()
+		if m.port == nil {
+			m.mu.Unlock()
+			return 0, 0, fmt.Errorf("serial port not connected")
+		}
+		m.port.SetReadTimeout(100 * time.Millisecond)
+		n, readErr := m.port.Read(buf[bufPos:])
+		m.mu.Unlock()
+
+		if readErr != nil {
+			continue
+		}
+		if n > 0 {
+			bufPos += n
+
+			fType, data, consumed, parseErr := ParseFrame(buf[:bufPos])
+			if parseErr != nil {
+				if consumed < 0 {
+					discard := -consumed
+					copy(buf, buf[discard:bufPos])
+					bufPos -= discard
+				}
+				continue
+			}
+			if consumed > 0 {
+				_ = fType
+				if len(data) == 8 {
+					code, val := DecodeResponse(data)
+					return code, val, nil
+				}
+				copy(buf, buf[consumed:bufPos])
+				bufPos -= consumed
+			}
+		}
+	}
+
+	return 0, 0, fmt.Errorf("timeout")
+}
+
+// IsConnected implements upgrade.Transport for UART.
+func (m *Manager) IsConnected() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.port != nil
+}
+
+// --- Connection management ---
+
 // EnumPorts returns a list of available serial ports.
 func (m *Manager) EnumPorts() ([]SerialPortInfo, error) {
 	ports, err := serial.GetPortsList()
@@ -60,14 +174,12 @@ func (m *Manager) EnumPorts() ([]SerialPortInfo, error) {
 
 	var result []SerialPortInfo
 	for _, p := range ports {
-		// Filter out Bluetooth ports
 		pLower := strings.ToLower(p)
 		if strings.Contains(pLower, "bluetooth") {
 			continue
 		}
 
 		name := p
-		// Extract short name for display
 		if idx := strings.LastIndex(p, "/"); idx >= 0 {
 			name = p[idx+1:]
 		} else if idx := strings.LastIndex(p, "\\"); idx >= 0 {
@@ -126,74 +238,33 @@ func (m *Manager) Disconnect() {
 	}
 }
 
-// IsConnected returns whether the serial port is open.
-func (m *Manager) IsConnected() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.port != nil
-}
-
 // GetFirmwareVersion queries the firmware version via UART.
 func (m *Manager) GetFirmwareVersion() (uint32, error) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if m.port == nil {
+		m.mu.Unlock()
 		return 0, fmt.Errorf("serial port not connected")
 	}
+	m.mu.Unlock()
 
-	// Clear receive buffer
-	m.port.ResetInputBuffer()
-
-	cmdData := EncodeCommand(CmdVersion, 0)
-	frame := make([]byte, 32)
-	frameLen, err := BuildFrame(FrameTypeCmd, cmdData[:], frame)
+	version, err := upgrade.GetVersion(m)
 	if err != nil {
-		return 0, fmt.Errorf("build command frame failed: %w", err)
+		return 0, err
 	}
-
-	if _, err := m.port.Write(frame[:frameLen]); err != nil {
-		return 0, fmt.Errorf("send version query failed: %w", err)
-	}
-
-	m.log("Waiting for version response...")
-
-	code, version, err := m.waitForResponse(5 * time.Second)
-	if err != nil {
-		return 0, fmt.Errorf("read version response timeout: %w", err)
-	}
-
-	if code == FWCodeVersion {
-		m.log(fmt.Sprintf("Firmware version: v%d.%d.%d",
-			(version>>24)&0xFF, (version>>16)&0xFF, (version>>8)&0xFF))
-		return version, nil
-	}
-
-	return 0, fmt.Errorf("read version response data error")
+	m.log(fmt.Sprintf("Firmware version: %s", upgrade.FormatVersion(version)))
+	return version, nil
 }
 
 // BoardReboot sends a reboot command via UART.
 func (m *Manager) BoardReboot() error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if m.port == nil {
+		m.mu.Unlock()
 		return fmt.Errorf("serial port not connected")
 	}
+	m.mu.Unlock()
 
-	cmdData := EncodeCommand(CmdReboot, 0)
-	frame := make([]byte, 32)
-	frameLen, err := BuildFrame(FrameTypeCmd, cmdData[:], frame)
-	if err != nil {
-		return fmt.Errorf("build command frame failed: %w", err)
-	}
-
-	if _, err := m.port.Write(frame[:frameLen]); err != nil {
-		return fmt.Errorf("send reboot command failed: %w", err)
-	}
-
-	m.log("Reboot command sent")
-	return nil
+	return upgrade.Reboot(m)
 }
 
 // FirmwareUpgrade performs a complete firmware upgrade over UART.
@@ -205,180 +276,38 @@ func (m *Manager) FirmwareUpgrade(filePath string, testMode bool) error {
 	}
 	m.mu.Unlock()
 
-	f, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("cannot open file: %s", filePath)
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("cannot get file info")
-	}
-	fileSize := fi.Size()
-	m.log(fmt.Sprintf("Starting firmware upgrade, size: %d bytes", fileSize))
-
-	// Send start update command with file size
-	m.mu.Lock()
-	cmdData := EncodeCommand(CmdStartUpdate, uint32(fileSize))
-	frame := make([]byte, 32)
-	frameLen, _ := BuildFrame(FrameTypeCmd, cmdData[:], frame)
-
-	if _, err := m.port.Write(frame[:frameLen]); err != nil {
-		m.mu.Unlock()
-		return fmt.Errorf("send firmware size failed")
-	}
-	m.mu.Unlock()
-
-	// Wait for flash erase
-	code, offset, err := m.waitForResponse(15 * time.Second)
-	if err != nil {
-		return fmt.Errorf("flash erase timeout")
-	}
-	if code != FWCodeOffset || offset != 0 {
-		return fmt.Errorf("flash erase failed: code(%d), offset(%d)", code, offset)
-	}
-
-	m.log("Flash erase complete")
-
-	// Send firmware data 8 bytes at a time
-	var bytesSent int64
-	dataBuf := make([]byte, 8)
-	transferComplete := false
-
-	for {
-		n, err := f.Read(dataBuf)
-		if n == 0 || err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("read firmware file failed: %w", err)
-		}
-
-		// Pad to 8 bytes
-		for i := n; i < 8; i++ {
-			dataBuf[i] = 0xFF
-		}
-
-		m.mu.Lock()
-		frameLen, _ = BuildFrame(FrameTypeData, dataBuf, frame)
-		_, writeErr := m.port.Write(frame[:frameLen])
-		m.mu.Unlock()
-
-		if writeErr != nil {
-			return fmt.Errorf("send file data failed")
-		}
-
-		bytesSent += 8
-
-		// Every 64 bytes or at end
-		if bytesSent%64 == 0 || bytesSent >= fileSize {
-			m.progress(int(bytesSent * 100 / fileSize))
-
-			code, offset, err := m.waitForResponse(5 * time.Second)
-			if err != nil {
-				return fmt.Errorf("firmware update timeout")
-			}
-			if code == FWCodeSuccess {
-				transferComplete = true
-				break
-			}
-			if code != FWCodeOffset {
-				return fmt.Errorf("firmware upgrade failed: code(%d), offset(%d)", code, offset)
-			}
-		}
-	}
-
-	m.progress(100)
-
-	// Check transfer completion
-	if !transferComplete && bytesSent > 0 {
-		code, _, err := m.waitForResponse(5 * time.Second)
-		if err != nil {
-			return fmt.Errorf("wait firmware transfer complete timeout")
-		}
-		if code != FWCodeSuccess {
-			return fmt.Errorf("firmware transfer failed: code(%d)", code)
-		}
-	}
-
-	// Send confirm command
-	confirmVal := uint32(1)
-	if testMode {
-		confirmVal = 0
-	}
-
-	m.mu.Lock()
-	cmdData = EncodeCommand(CmdConfirm, confirmVal)
-	frameLen, _ = BuildFrame(FrameTypeCmd, cmdData[:], frame)
-	_, writeErr := m.port.Write(frame[:frameLen])
-	m.mu.Unlock()
-
-	if writeErr != nil {
-		return fmt.Errorf("send confirm command failed")
-	}
-
-	code, respVal, err := m.waitForResponse(30 * time.Second)
-	if err != nil {
-		return fmt.Errorf("firmware confirm timeout")
-	}
-
-	if code == FWCodeConfirm && respVal == 0x55AA55AA {
-		m.log(fmt.Sprintf("File %s upload complete", filePath))
-		return nil
-	}
-	if code == FWCodeTransferErr {
-		return fmt.Errorf("firmware update failed")
-	}
-
-	return fmt.Errorf("firmware confirm failed: code(%d)", code)
+	return upgrade.RunUpgrade(m, filePath, testMode, 0xFF, &upgrade.Callbacks{
+		OnLog:      m.onLog,
+		OnProgress: m.onProgress,
+	})
 }
 
-func (m *Manager) waitForResponse(timeout time.Duration) (code uint32, val uint32, err error) {
-	buf := make([]byte, 256)
-	var bufPos int
-	deadline := time.Now().Add(timeout)
+// OpenFirmwareFile opens a native file dialog to select a firmware file.
+// Deprecated: use CANUpgradeService.OpenFirmwareFile instead.
+func OpenFirmwareFile() (string, error) {
+	return "", fmt.Errorf("not implemented: use CANUpgradeService.OpenFirmwareFile")
+}
 
-	for time.Now().Before(deadline) {
-		m.mu.Lock()
-		if m.port == nil {
-			m.mu.Unlock()
-			return 0, 0, fmt.Errorf("serial port not connected")
-		}
-		// Set read deadline to avoid blocking forever
-		m.port.SetReadTimeout(100 * time.Millisecond)
-		n, readErr := m.port.Read(buf[bufPos:])
-		m.mu.Unlock()
+// DecodeResponse parses a UART response frame's data payload into code+val.
+// Kept for backward compatibility with any external callers.
+func decodeResponseLocal(data []byte) (code uint32, val uint32) {
+	return DecodeResponse(data)
+}
 
-		if readErr != nil {
-			continue
-		}
-		if n > 0 {
-			bufPos += n
-
-			// Try to parse frame
-			fType, data, consumed, parseErr := ParseFrame(buf[:bufPos])
-			if parseErr != nil {
-				if consumed < 0 {
-					discard := -consumed
-					copy(buf, buf[discard:bufPos])
-					bufPos -= discard
-				}
-				continue
-			}
-			if consumed > 0 {
-				// Successfully parsed
-				_ = fType
-				if len(data) == 8 {
-					code, val = DecodeResponse(data)
-					return code, val, nil
-				}
-				// Remove consumed bytes
-				copy(buf, buf[consumed:bufPos])
-				bufPos -= consumed
-			}
-		}
+// ensurePort checks if the port is open and returns an error if not.
+func (m *Manager) ensurePort() error {
+	if m.port == nil {
+		return fmt.Errorf("serial port not connected")
 	}
+	return nil
+}
 
-	return 0, 0, fmt.Errorf("timeout")
+// Read is a helper for external callers that need raw serial read (e.g., diagnostics).
+func (m *Manager) Read(buf []byte) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.port == nil {
+		return 0, io.ErrClosedPipe
+	}
+	return m.port.Read(buf)
 }
