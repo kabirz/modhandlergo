@@ -11,8 +11,8 @@ permissions:
 
 env:
   APP_NAME: modhandlergo
-  GO_VERSION: "1.25"
-  NODE_VERSION: "20"
+  GO_VERSION: "1.26"
+  NODE_VERSION: "24"
 
 jobs:
   build-windows:
