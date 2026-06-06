@@ -7,3 +7,5 @@ build/windows/nsis/MicrosoftEdgeWebview2Setup.exebuild/bin/
 bin/
 *.exe
 *.syso
+.reasonix/
+reasonix.toml
