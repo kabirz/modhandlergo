@@ -140,15 +140,15 @@ export function LoRaConfigPage() {
   const ch = channel === "CH1" ? "1" : "2";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Row 1: Transport + Device Discovery */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         {/* Transport — pill toggle like FirmwareUpgradePage */}
-        <div className="p-3 rounded-lg bg-card border border-border/50">
+        <div className="p-2 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Settings className="h-3.5 w-3.5" />} title={t("cfg.transport")} />
           <div className="flex items-center gap-2 flex-wrap">
             {/* Toggle */}
-            <div className="relative flex items-center bg-muted rounded-md p-0.5 h-7 w-44 shrink-0">
+            <div className="relative flex items-center bg-muted rounded-md p-0.5 h-6 w-44 shrink-0">
               <div className={`absolute top-0.5 bottom-0.5 w-1/2 bg-primary rounded-[4px] transition-transform duration-200 ${transport === "serial" ? "translate-x-full" : "translate-x-0"}`} />
               <button onClick={() => { setTransport("udp"); LoRaConfigService.SetATTransport(0); }}
                 className={`relative z-10 flex-1 text-[11px] font-medium text-center rounded transition-colors cursor-pointer ${transport === "udp" ? "text-primary-foreground" : "text-muted-foreground"}`}>
@@ -198,10 +198,10 @@ export function LoRaConfigPage() {
         </div>
 
         {/* Device Discovery */}
-        <div className="p-3 rounded-lg bg-card border border-border/50">
+        <div className="p-2 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Search className="h-3.5 w-3.5" />} title={t("cfg.discovery")} />
           {/* Buttons evenly distributed */}
-          <div className="grid grid-cols-4 gap-2 mb-2.5">
+          <div className="grid grid-cols-4 gap-1.5 mb-2">
             <Btn onClick={() => LoRaConfigService.SearchDevices()}><Search className="h-2.5 w-2.5 mr-0.5" />{t("cfg.search")}</Btn>
             <Btn onClick={() => LoRaConfigService.GetNetParams(gatewayIP)}>{t("cfg.getNet")}</Btn>
             <Btn onClick={() => sendAT("AT+GWID?")}>{t("cfg.queryGwid")}</Btn>
@@ -223,11 +223,11 @@ export function LoRaConfigPage() {
       </div>
 
       {/* Row 2: Network + LoRa Protocol */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         {/* Network */}
-        <div className="p-3 rounded-lg bg-card border border-border/50">
+        <div className="p-2 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Globe className="h-3.5 w-3.5" />} title={t("cfg.network")} />
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {/* DHCP */}
             <SettingRow label="DHCP:">
               <span className="font-mono text-[11px] min-w-[32px]">{dhcpText || "-"}</span>
@@ -296,9 +296,9 @@ export function LoRaConfigPage() {
         </div>
 
         {/* LoRa Protocol */}
-        <div className="p-3 rounded-lg bg-card border border-border/50">
+        <div className="p-2 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Radio className="h-3.5 w-3.5" />} title={t("cfg.loraProto")} />
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {/* Mesh */}
             <SettingRow label={`${t("cfg.mesh")}:`} className="w-14">
               <Sel value={nwmode} onChange={(v) => setNwmode(Number(v))} className="w-12"
@@ -335,7 +335,7 @@ export function LoRaConfigPage() {
               </div>
             </SettingRow>
             {/* Channel parameters group */}
-            <div className="p-2 rounded-md border border-border/40 bg-muted/30 space-y-2">
+            <div className="p-1.5 rounded-md border border-border/40 bg-muted/30 space-y-1.5">
               {/* Channel toggle + label */}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground font-medium">{t("cfg.channel")}:</span>
@@ -376,7 +376,7 @@ export function LoRaConfigPage() {
       </div>
 
       {/* AT Command */}
-      <div className="p-2.5 rounded-lg bg-card border border-border/50 flex items-center gap-2">
+      <div className="p-2 rounded-lg bg-card border border-border/50 flex items-center gap-2">
         <Zap className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <Input value={atCmd} onChange={(e) => setAtCmd(e.target.value)} className="flex-1 h-7 text-xs font-mono"
           onKeyDown={(e) => e.key === "Enter" && sendAT(atCmd)} />
@@ -385,14 +385,14 @@ export function LoRaConfigPage() {
       </div>
 
       {/* Log */}
-      <div className="p-3 rounded-lg bg-card border border-border/50">
-        <div className="flex items-center justify-between mb-2">
+      <div className="p-2 rounded-lg bg-card border border-border/50">
+        <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-medium text-foreground/80">{t("cfg.responseLog")}</span>
           <Button variant="ghost" size="icon" onClick={() => setLogs([])} title={t("lora.clear")} className="h-5 w-5">
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
-        <div className="overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed terminal-selectable">
+        <div className="overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed terminal-selectable terminal-sm">
           {logs.length === 0 ? <span className="text-muted-foreground/50">{t("cfg.waitResp")}</span> : logs.map((l) => <div key={l.id}>{l.text}</div>)}
         </div>
       </div>

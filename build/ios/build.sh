@@ -4,8 +4,8 @@ set -e
 # Build configuration
 APP_NAME="modhandlergo"
 BUNDLE_ID="com.kabirz.laserrangetool"
-VERSION="0.1.4"
-BUILD_NUMBER="0.1.4"
+VERSION="0.1.5"
+BUILD_NUMBER="0.1.5"
 BUILD_DIR="build/ios"
 TARGET="simulator"
 

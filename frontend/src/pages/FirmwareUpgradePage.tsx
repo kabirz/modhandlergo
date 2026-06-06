@@ -263,7 +263,7 @@ export function FirmwareUpgradePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div ref={logRef} className="overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg terminal-selectable">
+          <div ref={logRef} className="overflow-y-auto bg-terminal-bg rounded-md p-3 font-mono text-xs text-terminal-fg terminal-selectable terminal-xl">
             {logs.length === 0 ? (
               <p className="text-muted-foreground">{t("fw.waitOp")}</p>
             ) : (

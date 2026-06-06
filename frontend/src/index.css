@@ -150,16 +150,26 @@
     -webkit-user-select: text;
     cursor: text;
     word-break: break-all;
-    height: 200px;
-    min-height: 200px;
-    max-height: 200px;
+    height: 240px;
+    min-height: 240px;
+    max-height: 240px;
     overflow-y: auto !important;
     overflow-x: hidden;
   }
 
   .terminal-selectable.terminal-lg {
-    height: 380px;
-    min-height: 380px;
-    max-height: 380px;
+    height: 430px;
+    min-height: 430px;
+    max-height: 430px;
+  }
+  .terminal-selectable.terminal-sm {
+    height: 210px;
+    min-height: 210px;
+    max-height: 210px;
+  }
+  .terminal-selectable.terminal-xl {
+    height: 290px;
+    min-height: 290px;
+    max-height: 290px;
   }
 }
