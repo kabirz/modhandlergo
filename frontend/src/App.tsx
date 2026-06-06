@@ -6,12 +6,8 @@ import { LoRaConfigPage } from "@/pages/LoRaConfigPage";
 import { FirmwareUpgradePage } from "@/pages/FirmwareUpgradePage";
 import { CanCommandPage } from "@/pages/CanCommandPage";
 
-const pages: Record<string, React.FC> = {
-  "lora-data": LoRaDataPage,
-  "lora-config": LoRaConfigPage,
-  firmware: FirmwareUpgradePage,
-  "can-command": CanCommandPage,
-};
+const pageIds = ["lora-data", "lora-config", "firmware", "can-command"] as const;
+type PageId = (typeof pageIds)[number];
 
 type ThemeMode = "light" | "dark";
 
@@ -31,7 +27,7 @@ function applyTheme(mode: ThemeMode) {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState("lora-data");
+  const [activePage, setActivePage] = useState<PageId>("lora-data");
   const [darkMode, setDarkMode] = useState<ThemeMode>(getInitialTheme);
 
   // Apply theme on mount and when it changes
@@ -44,20 +40,22 @@ function App() {
     setDarkMode((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
 
-  const PageComponent = pages[activePage] || LoRaDataPage;
-
   return (
     <I18nProvider>
     <div className="flex h-screen overflow-hidden bg-background transition-colors duration-300">
       <Sidebar
         activePage={activePage}
-        onNavigate={setActivePage}
+        onNavigate={(id) => setActivePage(id as PageId)}
         darkMode={darkMode === "dark"}
         onToggleTheme={toggleTheme}
       />
       <main className="flex-1 overflow-hidden p-6">
         <div className="h-full overflow-y-auto">
-          <PageComponent />
+          {/* Keep all pages mounted to preserve connection state and event listeners */}
+          <div style={{ display: activePage === "lora-data" ? "contents" : "none" }}><LoRaDataPage /></div>
+          <div style={{ display: activePage === "lora-config" ? "contents" : "none" }}><LoRaConfigPage /></div>
+          <div style={{ display: activePage === "firmware" ? "contents" : "none" }}><FirmwareUpgradePage /></div>
+          <div style={{ display: activePage === "can-command" ? "contents" : "none" }}><CanCommandPage /></div>
         </div>
       </main>
     </div>

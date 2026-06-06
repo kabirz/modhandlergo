@@ -3,6 +3,7 @@ package lorasdk
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 )
 
 // SDK is the main LoRa Gateway SDK struct.
@@ -14,7 +15,7 @@ type SDK struct {
 	udp         *UDPClient
 	serial      *SerialClient
 	atTransport ATTransport
-	testFlag    int
+	testFlag    atomic.Int32
 	ctx         context.Context
 	cancel      context.CancelFunc
 }
@@ -67,7 +68,7 @@ func (s *SDK) SendFrame(nid uint32, data []byte) error {
 
 // SendRSSIResponse sends an RSSI response frame.
 func (s *SDK) SendRSSIResponse(nid uint32, snrRaw, rssiRaw, testFlag byte) error {
-	return s.tcp.SendRSSIResponse(nid, snrRaw, rssiRaw, testFlag)
+	return s.tcp.SendRSSIResponse(nid, snrRaw, rssiRaw, byte(s.testFlag.Load()))
 }
 
 // --- UDP Operations ---
@@ -142,7 +143,7 @@ func (s *SDK) GetATTransport() ATTransport {
 
 // SetTestFlag sets the test flag for RSSI responses.
 func (s *SDK) SetTestFlag(flag int) {
-	s.testFlag = flag
+	s.testFlag.Store(int32(flag))
 }
 
 // IsTCPConnected returns whether TCP is connected.

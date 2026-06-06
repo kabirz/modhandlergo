@@ -141,11 +141,15 @@ func (d *Dispatcher) readLoop(ctx context.Context) {
 			d.waitMu.Unlock()
 		}
 
-		// 2. Fan out to all async subscribers
+		// 2. Fan out to all async subscribers (copy under RLock, invoke outside)
 		d.mu.RLock()
+		cbs := make([]func(*canhal.Frame), 0, len(d.subscribers))
 		for _, cb := range d.subscribers {
-			cb(frame)
+			cbs = append(cbs, cb)
 		}
 		d.mu.RUnlock()
+		for _, cb := range cbs {
+			cb(frame)
+		}
 	}
 }

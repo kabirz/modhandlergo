@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Terminal, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { msTimestamp } from "@/lib/utils";
 import { CANCommandService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 interface FrameEntry {
@@ -61,10 +62,11 @@ export function CanCommandPage() {
   // Monitor state synced with firmware upgrade page
   const [monitorActive, setMonitorActive] = useState(false);
 
+  const monitorActiveRef = useRef(false);
+
   useEffect(() => {
-    // Don't auto-start monitor; wait for CAN connection from upgrade page
     return () => {
-      if (monitorActive) {
+      if (monitorActiveRef.current) {
         CANCommandService.StopMonitor().catch(() => {});
       }
     };
@@ -74,18 +76,15 @@ export function CanCommandPage() {
   useWailsEvent<number>("can:connected", (channel) => {
     CANCommandService.SetChannel(channel).catch(() => {});
     CANCommandService.StartMonitor().catch(() => {});
+    monitorActiveRef.current = true;
     setMonitorActive(true);
   });
 
   useWailsEvent<any>("can:disconnected", () => {
     CANCommandService.StopMonitor().catch(() => {});
+    monitorActiveRef.current = false;
     setMonitorActive(false);
   });
-
-  const msTimestamp = () => {
-    const now = new Date();
-    return `${now.toLocaleTimeString("zh-CN", { hour12: false })}.${String(now.getMilliseconds()).padStart(3, "0")}`;
-  };
 
   useWailsEvent<any>("can:frame", (ev) => {
     const label = FRAME_LABELS[ev.id] || "";

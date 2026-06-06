@@ -19,7 +19,7 @@ func init() {
 	application.RegisterEvent[int]("can:progress")
 	application.RegisterEvent[string]("uart:log")
 	application.RegisterEvent[int]("uart:progress")
-	application.RegisterEvent[string]("lora:log")
+	application.RegisterEvent[map[string]interface{}]("lora:log")
 	application.RegisterEvent[int]("lora:connstate")
 	application.RegisterEvent[map[string]interface{}]("lora:scanner")
 	application.RegisterEvent[map[string]interface{}]("lora:frame")

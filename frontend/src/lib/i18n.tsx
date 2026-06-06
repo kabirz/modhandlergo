@@ -50,6 +50,7 @@ const dict: Record<string, Record<Lang, string>> = {
   "lora.saved":       { zh: "已保存",       en: "Saved" },
   "lora.records":     { zh: "条记录到 CSV", en: "records to CSV" },
   "lora.connState":   { zh: "连接状态",     en: "Conn State" },
+  "lora.connecting":  { zh: "连接中",       en: "Connecting" },
 
   // LoRa Config
   "cfg.transport":    { zh: "连接方式",     en: "Transport" },

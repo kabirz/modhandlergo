@@ -75,7 +75,11 @@ export function LoRaConfigPage() {
   });
   useWailsEvent<string>("lora:atresponse", (resp) => addLog(resp));
   useWailsEvent<string>("lora:gwid", (gwid) => setDevGwid(gwid));
-  useWailsEvent<string>("lora:log", (msg) => addLog(msg));
+  // Only show UDP (src=1) and Serial (src=2) logs in config page; TCP logs go to data page
+  useWailsEvent<any>("lora:log", (data) => {
+    if (typeof data === "string") { addLog(data); return; }
+    if (data?.src === 1 || data?.src === 2) addLog(data.msg);
+  });
   useWailsEvent<any>("lora:netparams", (params) => {
     if (params?.ip) setNetIP(params.ip);
     if (params?.mask) setNetMask(params.mask);

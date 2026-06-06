@@ -1,0 +1,70 @@
+# Reasonix configuration.
+# Resolution order: flag > ./reasonix.toml > ~/.config/reasonix/config.toml > built-in defaults.
+# Secrets come from the environment via api_key_env; never put keys here.
+
+config_version = 2   # schema marker for diagnostics; old versions may ignore it
+default_model = "deepseek-flash"
+# language      = "zh"   # ui/model language; empty = auto-detect from $LANG / $REASONIX_LANG
+
+[agent]
+# system_prompt = """..."""   # omit to use the built-in prompt for this version
+# system_prompt_file = "prompts/system.md"   # overrides system_prompt when set
+max_steps   = 0
+temperature = 0.0
+auto_plan   = "off"   # off|on; off keeps plan mode manual
+# auto_plan_classifier = "deepseek-flash"   # optional; only used for borderline tasks
+soft_compact_ratio  = 0.5   # notice only; keeps cache-first prefix intact
+compact_ratio       = 0.8   # try compacting when prompt reaches this fraction
+compact_force_ratio = 0.9   # force compacting at this high-water mark
+# planner_model = "mimo"   # optional: enable two-model collaboration
+# subagent_model = "deepseek-pro"   # optional default for runAs=subagent skills
+# subagent_models = { review = "deepseek-pro", security_review = "deepseek-pro" }   # per-skill overrides
+# output_style = "explanatory"   # explanatory | learning | concise | custom; empty = default
+
+[tools]
+enabled = []   # empty = all built-in tools
+
+[codegraph]
+enabled      = true   # built-in MCP server; off by default for first-run sessions
+auto_install = true   # fetch the runtime when CodeGraph is enabled but missing
+# path       = ""   # empty = cache, then PATH, then a bundle beside reasonix
+# tier       = "lazy"   # lazy|background|eager
+
+[skills]
+# paths = ["~/my-skills", "../shared/skills"]   # extra custom skill roots
+# disabled_skills = ["review"]   # hide noisy or unwanted skills
+
+[permissions]
+# Per-call gating. mode = writer fallback when no rule matches: ask|allow|deny.
+# Readers always default to allow. Precedence: deny > ask > allow > fallback.
+# Rules are "ToolName" or "ToolName(glob)"; '*' matches any run, '?' one char.
+mode  = "ask"
+# deny = ["bash(rm -rf*)", "bash(git push*)"]   # hard-blocked in every mode
+allow = ["bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && git status --short && git log --oneline -3", "edit_file=internal/canmanager/manager.go", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && grep -n '\"context\"' internal/canmanager/manager.go", "edit_file=internal/cancommand/command.go", "edit_file=internal/candispatcher/dispatcher.go", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && grep -rn \"CalcCRC16\" --include=\"*.go\"", "edit_file=frontend/src/lib/utils.ts", "edit_file=internal/loraservice/bridge.go", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && go build ./... 2>&1", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && go vet ./internal/... ./service/... 2>&1", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && go build -o /dev/null . 2>&1", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo/frontend && npx tsc --noEmit 2>&1 | head -30", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && git diff --stat", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && git diff -- internal/", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && git diff -- frontend/src/", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && go build -o /dev/null . 2>&1 && echo \"=== Go build OK ===\" && cd frontend && npx tsc --noEmit 2>&1 && echo \"=== TypeScript OK ===\"", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && wails3 build 2>&1", "bash=where wails3 2>&1 || where wails 2>&1 || echo \"---\" && ls /c/Users/jxwaz/go/bin/ 2>&1", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && /c/Users/jxwaz/go/bin/wails3.exe build 2>&1", "bash=export PATH=\"/c/Users/jxwaz/go/bin:$PATH\" && cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && wails3 build 2>&1", "edit_file=frontend/src/App.tsx", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo/frontend && npx tsc --noEmit 2>&1 && echo \"=== TypeScript OK ===\"", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && grep -n \"lora:log\" frontend/src/pages/*.tsx", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && grep -A5 'LogSource' internal/lorasdk/protocol.go | head -10", "edit_file=frontend/src/pages/LoRaDataPage.tsx", "edit_file=frontend/src/pages/LoRaConfigPage.tsx", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && go build -o /dev/null . 2>&1 && echo \"=== Go OK ===\" && cd frontend && npx tsc --noEmit 2>&1 && echo \"=== TS OK ===\"", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && grep -n \"addLog\\|useWailsEvent.*lora:\" frontend/src/pages/LoRaDataPage.tsx frontend/src/pages/LoRaConfigPage.tsx", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && grep -rn '\"lora:log\"' service/ frontend/src/ --include=\"*.go\" --include=\"*.ts\" --include=\"*.tsx\"", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && grep -rn 'lora:log' service/ --include=\"*.go\"", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && grep -rn 'OnLog\\|OnError' internal/lorasdk/ --include=\"*.go\" | grep -v '_test.go'", "bash=export PATH=\"/c/Users/jxwaz/go/bin:$PATH\" && cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && wails3 build 2>&1 | tail -20", "edit_file=frontend/src/lib/i18n.tsx", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo/frontend && npx tsc --noEmit 2>&1 && echo \"=== TS OK ===\"", "bash=export PATH=\"/c/Users/jxwaz/go/bin:$PATH\" && cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && wails3 build 2>&1 | tail -10", "bash=export PATH=\"/c/Users/jxwaz/go/bin:$PATH\" && cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && wails3 build 2>&1 | tail -5", "edit_file=frontend/src/pages/FirmwareUpgradePage.tsx", "bash=cd /c/Users/jxwaz/Documents/ai/ModHandlerGo && git add -A && git commit -m \"refactor: optimize code quality, fix page state persistence, and improve UI\n\nBackend optimizations (no functional changes):\n- Replace deprecated math/rand with math/rand/v2\n- Remove meaningless 'var _ context.Context' assertion in canmanager\n- Promote FrameIDLabel map to package-level variable\n- Add atomic protection for SDK testFlag field\n- Fix SearchDevices parameter type from interface{} to context.Context\n- Copy dispatcher subscribers under RLock before invoking callbacks\n- Simplify CalcCRC16 signature (remove redundant len parameter)\n- Deduplicate AT response parsing (+CH/+SPD/+PWR) in loraservice bridge\n- Fix lora:log event registration type to match emitted map[string]interface{}\n\nFrontend fixes and improvements:\n- Keep all pages mounted (display:none/contents) to preserve connection\n  state and event listeners across page switches\n- Fix CanCommandPage cleanup effect closure bug with useRef\n- Extract shared msTimestamp() utility to lib/utils.ts\n- Type serialPorts as SerialPortInfo[] instead of any[]\n- Add connecting state with spinner animation for LoRa TCP connect button\n- Add lora.connecting i18n key (zh/en)\n- Split lora:log by source: TCP logs to LoRaDataPage, UDP/Serial to\n  LoRaConfigPage\n- Sync gateway IP and SOCKA local port from LoRaConfigPage to LoRaDataPage\n- Replace CAN/UART select dropdown with animated toggle switch\n- Unify CAN/UART control widths to prevent layout shift on toggle\n- Merge firmware upgrade progress and controls into firmware file card\n- Layout: progress bar + start upgrade on one line, version + query +\n  reboot on second line with left-aligned version label\""]
+# ask = ["write_file"]   # force a prompt even if otherwise allowed
+
+[sandbox]
+# Confine tool blast radius. File-writers (write_file/edit_file/multi_edit)
+# may only write under workspace_root (empty = current dir) + allow_write.
+# bash = "enforce" (default) jails each command in an OS sandbox (macOS now;
+# graceful fallback elsewhere); "off" disables it. network allows egress.
+# workspace_root = ""            # default: current working directory
+# allow_write = ["/tmp"]          # extra dirs writers may also modify
+bash    = "enforce"
+network = true
+
+[statusline]
+# A custom status line: a command whose first stdout line replaces the built-in
+# data row. It receives {"model","contextUsed","contextWindow","cwd"} as JSON on stdin.
+# command = "my-statusline.sh"
+
+# External MCP servers. type: "stdio" (default, a subprocess) | "http" | "sse".
+# ${VAR} / ${VAR:-default} are expanded from the environment in command/args/env/url/headers.
+# [[plugins]]
+# name    = "example"
+# command = "reasonix-plugin-example"
+# [[plugins]]                                  # a remote server over Streamable HTTP
+# name    = "stripe"
+# type    = "http"
+# url     = "https://mcp.stripe.com"
+# headers = { Authorization = "Bearer ${STRIPE_KEY}" }

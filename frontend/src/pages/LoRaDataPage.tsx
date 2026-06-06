@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Wifi, WifiOff, Zap, Crosshair, Box, Save, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { msTimestamp } from "@/lib/utils";
 import { LoRaDataService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 interface HistoryEntry {
@@ -49,7 +50,9 @@ export function LoRaDataPage() {
   const { t } = useI18n();
   const [ip, setIp] = useState("192.168.2.100");
   const [port, setPort] = useState("1234");
-  const [connected, setConnected] = useState(false);
+  const [connState, setConnState] = useState<0 | 1 | 2>(0); // 0=Disconnected, 1=Connecting, 2=Connected
+  const connected = connState === 2;
+  const connecting = connState === 1;
   const [nid, setNid] = useState("00000000");
   const [testMode, setTestMode] = useState(false);
   const [xAngle, setXAngle] = useState("--");
@@ -65,9 +68,7 @@ export function LoRaDataPage() {
   const historyRef = useRef<HTMLDivElement>(null);
 
   const addLog = useCallback((msg: string) => {
-    const now = new Date();
-    const ts = `${now.toLocaleTimeString("zh-CN", { hour12: false })}.${String(now.getMilliseconds()).padStart(3, "0")}`;
-    setLogLines((prev) => [...prev.slice(-500), `[${ts}] ${msg}`]);
+    setLogLines((prev) => [...prev.slice(-500), `[${msTimestamp()}] ${msg}`]);
   }, []);
 
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [logLines]);
@@ -75,7 +76,7 @@ export function LoRaDataPage() {
 
   // Connection state
   useWailsEvent<number>("lora:connstate", (state) => {
-    setConnected(state === 2);
+    setConnState((state || 0) as 0 | 1 | 2);
     const labels = ["Disconnected", "Connecting", "Connected"];
     addLog(`Connection state: ${labels[state] || "Unknown"}`);
   });
@@ -84,8 +85,7 @@ export function LoRaDataPage() {
   useWailsEvent<any>("lora:frame", (data) => {
     if (!data) return;
     setRxCount((c) => c + 1);
-    const now = new Date();
-    const ts = `${now.toLocaleTimeString("zh-CN", { hour12: false })}.${String(now.getMilliseconds()).padStart(3, "0")}`;
+    const ts = msTimestamp();
 
     let payload: number[] = [];
     if (Array.isArray(data.payload)) {
@@ -126,7 +126,25 @@ export function LoRaDataPage() {
     }
   });
 
-  useWailsEvent<any>("lora:log", (msg) => addLog(msg));
+  // Only show TCP logs (src=0) in data page; UDP/Serial logs go to config page
+  useWailsEvent<any>("lora:log", (data) => {
+    if (typeof data === "string") { addLog(data); return; }
+    if (data?.src === 0) addLog(data.msg);
+  });
+
+  // Sync gateway IP from LoRa config page (GetNetParams or AT+GWIP? response)
+  useWailsEvent<any>("lora:netparams", (params) => {
+    if (params?.ip) setIp(params.ip);
+  });
+  useWailsEvent<string>("lora:netip", (v) => {
+    if (v) setIp(v);
+  });
+
+  // Sync local port from LoRa config SOCKA (format: TCPC,<ip>,<remote_port>,<local_port>)
+  useWailsEvent<string>("lora:socka", (v) => {
+    const parts = v.split(",");
+    if (parts.length >= 4 && parts[3]) setPort(parts[3]);
+  });
 
   const handleConnect = async () => {
     try {
@@ -134,6 +152,14 @@ export function LoRaDataPage() {
       else { await LoRaDataService.Connect(ip, parseInt(port)); }
     } catch (err: any) { addLog(`Error: ${err.message || err}`); }
   };
+
+  const connBtnDisabled = connecting;
+  const connBtnVariant = connected ? "destructive" : "default";
+  const connBtnContent = connected
+    ? <><WifiOff className="h-3 w-3 mr-1" />{t("lora.disconnect")}</>
+    : connecting
+      ? <><span className="inline-block w-3 h-3 mr-1 border-2 border-current border-t-transparent rounded-full animate-spin" />{t("lora.connecting")}</>
+      : <><Wifi className="h-3 w-3 mr-1" />{t("lora.conn")}</>;
 
   const handleSend = async () => {
     const bytes = sendData.trim().split(/\s+/).map((b) => parseInt(b, 16)).filter((n) => !isNaN(n));
@@ -168,8 +194,8 @@ export function LoRaDataPage() {
         <Input value={ip} onChange={(e) => setIp(e.target.value)} className="w-36 h-7 text-xs font-mono" />
         <span className="text-xs text-muted-foreground w-8">{t("lora.port")}:</span>
         <Input value={port} onChange={(e) => setPort(e.target.value)} className="w-16 h-7 text-xs font-mono" />
-        <Button onClick={handleConnect} size="sm" className="h-7 px-4" variant={connected ? "destructive" : "default"}>
-          {connected ? <><WifiOff className="h-3 w-3 mr-1" />{t("lora.disconnect")}</> : <><Wifi className="h-3 w-3 mr-1" />{t("lora.conn")}</>}
+        <Button onClick={handleConnect} size="sm" className="h-7 px-4" variant={connBtnVariant} disabled={connBtnDisabled}>
+          {connBtnContent}
         </Button>
         <div className="flex-1" />
         <span className="text-xs text-muted-foreground">NID:</span>

@@ -21,7 +21,7 @@ declare module "@wailsio/runtime" {
             "lora:dhcp": string;
             "lora:frame": { [_ in string]?: any };
             "lora:gwid": string;
-            "lora:log": string;
+            "lora:log": { [_ in string]?: any };
             "lora:netgw": string;
             "lora:netip": string;
             "lora:netmask": string;

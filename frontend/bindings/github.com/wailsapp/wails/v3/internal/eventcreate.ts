@@ -11,6 +11,7 @@ function configure() {
         "can:frame": $$createType0,
         "lora:device": $$createType0,
         "lora:frame": $$createType0,
+        "lora:log": $$createType0,
         "lora:netparams": $$createType1,
         "lora:scanner": $$createType0,
     }));

@@ -1,7 +1,6 @@
 package canmanager
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -403,5 +402,4 @@ func (m *Manager) virtualFirmwareUpgrade(filePath string) error {
 	return nil
 }
 
-// Ensure Manager satisfies Wails ServiceStartup interface (optional lifecycle).
-var _ context.Context = context.Background()
+

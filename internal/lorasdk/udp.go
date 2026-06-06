@@ -1,6 +1,7 @@
 package lorasdk
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -165,7 +166,7 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 }
 
 // SearchDevices broadcasts a discovery packet and collects responses.
-func (u *UDPClient) SearchDevices(ctx interface{}) {
+func (u *UDPClient) SearchDevices(ctx context.Context) {
 	u.cb.OnLog("Starting LoRa device search...", LogUDP)
 
 	// Reset local IP to force re-enumeration (matches C: sdk->local_if_ip[0] = '\0')

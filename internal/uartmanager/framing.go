@@ -42,9 +42,9 @@ type SerialPortInfo struct {
 
 // CalcCRC16 computes CRC16 with init=0xFFFF, polynomial=0xA001.
 // Matches the C version's CalcCRC16 exactly.
-func CalcCRC16(data []byte, len int) uint16 {
+func CalcCRC16(data []byte) uint16 {
 	crc := uint16(0xFFFF)
-	for i := 0; i < len; i++ {
+	for i := range data {
 		crc ^= uint16(data[i])
 		for j := 0; j < 8; j++ {
 			if crc&0x0001 != 0 {
@@ -80,7 +80,7 @@ func BuildFrame(frameType byte, data []byte, out []byte) (int, error) {
 		idx += dataLen
 	}
 	// CRC16 in big-endian
-	crc := CalcCRC16(data, dataLen)
+	crc := CalcCRC16(data[:dataLen])
 	out[idx] = byte(crc >> 8)
 	idx++
 	out[idx] = byte(crc)
@@ -138,7 +138,7 @@ func ParseFrame(buf []byte) (frameType byte, data []byte, consumed int, err erro
 	// Verify CRC
 	recvCRC := uint16(buf[idx])<<8 | uint16(buf[idx+1])
 	idx += 2
-	calcCRC := CalcCRC16(frameData, dataLen)
+	calcCRC := CalcCRC16(frameData[:dataLen])
 	if recvCRC != calcCRC {
 		return 0, nil, -(frameStart + 1), fmt.Errorf("CRC mismatch")
 	}

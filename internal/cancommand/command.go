@@ -179,22 +179,21 @@ func (c *Command) ReplaceBackend(backend canhal.Backend, dispatcher *candispatch
 	c.dispatcher = dispatcher
 }
 
+// frameIDLabels maps known CAN frame IDs to human-readable labels.
+var frameIDLabels = map[uint32]string{
+	canmanager.PlatformRx:     "Control Command",
+	canmanager.PlatformTx:     "Response Frame",
+	canmanager.FWDataRx:       "Firmware Data",
+	canmanager.Heartbeat:      "Heartbeat",
+	canmanager.ControllerState: "Controller State",
+	canmanager.LaserRanging:   "Laser Ranging",
+	canmanager.CoordXY:        "X/Y Coordinates",
+	canmanager.CoordZ:         "Z Coordinate",
+	canmanager.LoraConfigCmd:  "LoRa Config",
+	canmanager.LoraConfigResp: "LoRa Config Response",
+}
+
 // FrameIDLabel returns a human-readable label for known CAN frame IDs.
 func FrameIDLabel(id uint32) string {
-	labels := map[uint32]string{
-		canmanager.PlatformRx:     "Control Command",
-		canmanager.PlatformTx:     "Response Frame",
-		canmanager.FWDataRx:       "Firmware Data",
-		canmanager.Heartbeat:      "Heartbeat",
-		canmanager.ControllerState: "Controller State",
-		canmanager.LaserRanging:   "Laser Ranging",
-		canmanager.CoordXY:        "X/Y Coordinates",
-		canmanager.CoordZ:         "Z Coordinate",
-		canmanager.LoraConfigCmd:  "LoRa Config",
-		canmanager.LoraConfigResp: "LoRa Config Response",
-	}
-	if label, ok := labels[id]; ok {
-		return label
-	}
-	return ""
+	return frameIDLabels[id]
 }

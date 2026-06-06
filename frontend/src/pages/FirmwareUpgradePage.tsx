@@ -12,6 +12,11 @@ import { CANUpgradeService } from "../../bindings/github.com/kabirz/modhandlergo
 const baudRates = ["10K", "20K", "50K", "100K", "125K", "250K", "500K", "1M"];
 const serialBaudRates = ["9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600"];
 
+interface SerialPortInfo {
+  portName: string;
+  friendlyName: string;
+}
+
 export function FirmwareUpgradePage() {
   const { t } = useI18n();
   const [channel, setChannel] = useState<"can" | "uart">("can");
@@ -19,7 +24,7 @@ export function FirmwareUpgradePage() {
   const [serialBaud, setSerialBaud] = useState("115200");
   const [canDevices, setCanDevices] = useState<number[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");
-  const [serialPorts, setSerialPorts] = useState<any[]>([]);
+  const [serialPorts, setSerialPorts] = useState<SerialPortInfo[]>([]);
   const [selectedPort, setSelectedPort] = useState("");
   const [firmwarePath, setFirmwarePath] = useState("");
   const [connected, setConnected] = useState(false);
@@ -145,14 +150,22 @@ export function FirmwareUpgradePage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <Select value={channel} onChange={(e) => setChannel(e.target.value as "can" | "uart")} className="w-32">
-              <option value="can">CAN</option>
-              <option value="uart">UART</option>
-            </Select>
+            {/* Channel toggle switch */}
+            <div className="relative flex items-center bg-muted rounded-md p-0.5 h-7 w-28">
+              <div className={`absolute top-0.5 bottom-0.5 w-1/2 bg-primary rounded-[4px] transition-transform duration-200 ${channel === "uart" ? "translate-x-full" : "translate-x-0"}`} />
+              <button
+                onClick={() => setChannel("can")}
+                className={`relative z-10 flex-1 text-xs font-medium text-center rounded transition-colors cursor-pointer ${channel === "can" ? "text-primary-foreground" : "text-muted-foreground"}`}
+              >CAN</button>
+              <button
+                onClick={() => setChannel("uart")}
+                className={`relative z-10 flex-1 text-xs font-medium text-center rounded transition-colors cursor-pointer ${channel === "uart" ? "text-primary-foreground" : "text-muted-foreground"}`}
+              >UART</button>
+            </div>
 
             {channel === "can" ? (
               <>
-                <Select value={selectedDevice} onChange={(e) => setSelectedDevice(e.target.value)} className="w-48">
+                <Select value={selectedDevice} onChange={(e) => setSelectedDevice(e.target.value)} className="w-44">
                   <option value="">{t("fw.selectDev")}</option>
                   {canDevices.map((d, i) => (
                     <option key={i} value={d.toString()}>Channel 0x{d.toString(16)}</option>
@@ -167,13 +180,13 @@ export function FirmwareUpgradePage() {
               </>
             ) : (
               <>
-                <Select value={selectedPort} onChange={(e) => setSelectedPort(e.target.value)} className="w-36">
+                <Select value={selectedPort} onChange={(e) => setSelectedPort(e.target.value)} className="w-44">
                   <option value="">{t("fw.selectPort")}</option>
-                  {serialPorts.map((p: any, i: number) => (
+                  {serialPorts.map((p: SerialPortInfo, i: number) => (
                     <option key={i} value={p.portName}>{p.friendlyName || p.portName}</option>
                   ))}
                 </Select>
-                <Select value={serialBaud} onChange={(e) => setSerialBaud(e.target.value)} className="w-32">
+                <Select value={serialBaud} onChange={(e) => setSerialBaud(e.target.value)} className="w-24">
                   {serialBaudRates.map((br) => (
                     <option key={br} value={br}>{br}</option>
                   ))}
@@ -189,12 +202,12 @@ export function FirmwareUpgradePage() {
         </CardContent>
       </Card>
 
-      {/* Firmware File */}
+      {/* Firmware File + Progress & Controls */}
       <Card>
         <CardHeader>
           <CardTitle>{t("fw.firmwareFile")}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex items-center gap-3">
             <Input value={firmwarePath} onChange={(e) => setFirmwarePath(e.target.value)} placeholder="Select firmware file (.bin)" className="flex-1" />
             <Button variant="outline" onClick={async () => {
@@ -206,25 +219,21 @@ export function FirmwareUpgradePage() {
               }
             }}>{t("fw.browse")}</Button>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Progress & Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("fw.upgrade")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Progress value={progress} />
-          <p className="text-sm text-muted-foreground text-center">{progress}%</p>
-
-          <div className="flex items-center gap-3 justify-center">
+          {/* Progress + Start Upgrade */}
+          <div className="flex items-center gap-3">
+            <Progress value={progress} className="flex-1" />
+            <span className="text-sm text-muted-foreground font-mono w-10 text-right">{progress}%</span>
             <Button onClick={handleUpgrade} disabled={!connected || !firmwarePath}>{t("fw.startUpgrade")}</Button>
-            <Button variant="outline" onClick={handleQueryVersion} disabled={!connected}>{t("fw.queryVer")}</Button>
-            <Button variant="outline" onClick={handleReboot} disabled={!connected}>{t("fw.reboot")}</Button>
           </div>
 
-          {version && <p className="text-center text-sm">{t("fw.curVersion")}: {version}</p>}
+          {/* Version + Query + Reboot */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground shrink-0">{t("fw.curVersion")}: <span className="font-mono text-foreground">{version || "—"}</span></span>
+            <div className="flex-1" />
+            <Button variant="outline" size="sm" onClick={handleQueryVersion} disabled={!connected}>{t("fw.queryVer")}</Button>
+            <Button variant="outline" size="sm" onClick={handleReboot} disabled={!connected}>{t("fw.reboot")}</Button>
+          </div>
         </CardContent>
       </Card>
 

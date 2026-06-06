@@ -1,7 +1,7 @@
 package loraservice
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 
 	"github.com/kabirz/modhandlergo/internal/lorasdk"
@@ -152,44 +152,23 @@ func (b *Bridge) OnATResponse(response string) {
 		b.emit("lora:gwid", v)
 	}
 
-	// +CH<n>:<freq>
-	if idx := strings.Index(s, "+CH"); idx >= 0 && len(s) > idx+4 {
-		if colon := strings.Index(s[idx:], ":"); colon >= 0 {
-			v := strings.TrimSpace(s[idx+colon+1:])
-			if spIdx := strings.IndexAny(v, " \r\n"); spIdx >= 0 {
-				v = v[:spIdx]
-			}
-			if v != "" && v != "OK" {
-				b.emit("lora:chfreq", v)
-			}
-		}
-	}
-
-	// +SPD<n>:<spd>
-	if idx := strings.Index(s, "+SPD"); idx >= 0 && len(s) > idx+5 {
-		if colon := strings.Index(s[idx:], ":"); colon >= 0 {
-			v := strings.TrimSpace(s[idx+colon+1:])
-			if spIdx := strings.IndexAny(v, " \r\n"); spIdx >= 0 {
-				v = v[:spIdx]
-			}
-			if v != "" && v != "OK" {
-				b.emit("lora:spd", v)
+	// +CH<n>:<freq>, +SPD<n>:<spd>, +PWR<n>:<pwr> — same pattern
+	emitTagValue := func(tag string, minLen int, event string) {
+		if idx := strings.Index(s, tag); idx >= 0 && len(s) > idx+minLen {
+			if colon := strings.Index(s[idx:], ":"); colon >= 0 {
+				v := strings.TrimSpace(s[idx+colon+1:])
+				if spIdx := strings.IndexAny(v, " \r\n"); spIdx >= 0 {
+					v = v[:spIdx]
+				}
+				if v != "" && v != "OK" {
+					b.emit(event, v)
+				}
 			}
 		}
 	}
-
-	// +PWR<n>:<pwr>
-	if idx := strings.Index(s, "+PWR"); idx >= 0 && len(s) > idx+5 {
-		if colon := strings.Index(s[idx:], ":"); colon >= 0 {
-			v := strings.TrimSpace(s[idx+colon+1:])
-			if spIdx := strings.IndexAny(v, " \r\n"); spIdx >= 0 {
-				v = v[:spIdx]
-			}
-			if v != "" && v != "OK" {
-				b.emit("lora:pwr", v)
-			}
-		}
-	}
+	emitTagValue("+CH", 4, "lora:chfreq")
+	emitTagValue("+SPD", 5, "lora:spd")
+	emitTagValue("+PWR", 5, "lora:pwr")
 
 	// +SOCKA:<mode>,<ip>,<remote_port>,<local_port>
 	if idx := strings.Index(s, "+SOCKA:"); idx >= 0 {
@@ -215,7 +194,7 @@ func (b *Bridge) OnNetParams(ip, mask, gateway string) {
 
 // OnLog implements lorasdk.Callbacks.
 func (b *Bridge) OnLog(message string, source lorasdk.LogSource) {
-	b.emit("lora:log", message)
+	b.emit("lora:log", map[string]interface{}{"msg": message, "src": int(source)})
 }
 
 // OnHexDump implements lorasdk.Callbacks.
@@ -228,7 +207,7 @@ func (b *Bridge) OnHexDump(prefix string, data []byte) {
 
 // OnError implements lorasdk.Callbacks.
 func (b *Bridge) OnError(message string, source lorasdk.LogSource) {
-	b.emit("lora:log", "[ERROR] "+message)
+	b.emit("lora:log", map[string]interface{}{"msg": "[ERROR] " + message, "src": int(source)})
 }
 
 // sendScannerEcho sends a simulated scanner merged frame back to the NID.
@@ -245,11 +224,11 @@ func (b *Bridge) sendScannerEcho(nid uint32) {
 			LaserValid:     true,
 			CoordZValid:    true,
 			CoordXYValid:   true,
-			Overbreak:      int16(rand.Intn(200) - 100),
-			Laser:          uint32(rand.Intn(49000) + 1000),
-			CoordX:         int32(rand.Intn(10000) - 5000),
-			CoordY:         int32(rand.Intn(10000) - 5000),
-			CoordZ:         int32(rand.Intn(5000)),
+			Overbreak:      int16(rand.IntN(200) - 100),
+			Laser:          uint32(rand.IntN(49000) + 1000),
+			CoordX:         int32(rand.IntN(10000) - 5000),
+			CoordY:         int32(rand.IntN(10000) - 5000),
+			CoordZ:         int32(rand.IntN(5000)),
 		}
 		buf := make([]byte, lorasdk.ScannerFrameSize)
 		lorasdk.PackScannerData(sd, buf)
