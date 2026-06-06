@@ -4,8 +4,8 @@ set -e
 # Build configuration
 APP_NAME="modhandlergo.exe"
 BUNDLE_ID="com.example.modhandlergo"
-VERSION="0.1.0"
-BUILD_NUMBER="0.1.0"
+VERSION="0.1.1"
+BUILD_NUMBER="0.1.1"
 BUILD_DIR="build/ios"
 TARGET="simulator"
 
