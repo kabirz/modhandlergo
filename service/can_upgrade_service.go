@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/kabirz/modhandlergo/internal/canhal"
 	"github.com/kabirz/modhandlergo/internal/canmanager"
@@ -35,7 +36,7 @@ func (s *CANUpgradeService) ServiceStartup(ctx context.Context, opts application
 	// Wire callbacks to emit events
 	s.uartMgr.SetLogCallback(func(msg string) {
 		if s.app != nil {
-			s.app.Event.Emit("uart:log", msg)
+			s.app.Event.Emit("uart:log", fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05.000"), msg))
 		}
 	})
 	s.uartMgr.SetProgressCallback(func(pct int) {
@@ -78,7 +79,7 @@ func (s *CANUpgradeService) ConnectCAN(channel int, baudIndex int) error {
 	}
 	mgr.SetLogCallback(func(msg string) {
 		if s.app != nil {
-			s.app.Event.Emit("can:log", msg)
+			s.app.Event.Emit("can:log", fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05.000"), msg))
 		}
 	})
 	mgr.SetProgressCallback(func(pct int) {

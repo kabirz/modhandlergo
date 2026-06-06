@@ -1,8 +1,10 @@
 package loraservice
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"strings"
+	"time"
 
 	"github.com/kabirz/modhandlergo/internal/lorasdk"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -194,7 +196,7 @@ func (b *Bridge) OnNetParams(ip, mask, gateway string) {
 
 // OnLog implements lorasdk.Callbacks.
 func (b *Bridge) OnLog(message string, source lorasdk.LogSource) {
-	b.emit("lora:log", map[string]interface{}{"msg": message, "src": int(source)})
+	b.emit("lora:log", map[string]interface{}{"msg": fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05.000"), message), "src": int(source)})
 }
 
 // OnHexDump implements lorasdk.Callbacks.
@@ -207,7 +209,7 @@ func (b *Bridge) OnHexDump(prefix string, data []byte) {
 
 // OnError implements lorasdk.Callbacks.
 func (b *Bridge) OnError(message string, source lorasdk.LogSource) {
-	b.emit("lora:log", map[string]interface{}{"msg": "[ERROR] " + message, "src": int(source)})
+	b.emit("lora:log", map[string]interface{}{"msg": fmt.Sprintf("[%s] [ERROR] %s", time.Now().Format("15:04:05.000"), message), "src": int(source)})
 }
 
 // sendScannerEcho sends a simulated scanner merged frame back to the NID.

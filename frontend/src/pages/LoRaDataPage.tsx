@@ -85,7 +85,7 @@ export function LoRaDataPage() {
   const historyRef = useRef<HTMLDivElement>(null);
 
   const addLog = useCallback((msg: string) => {
-    setLogLines((prev) => [...prev.slice(-500), { id: nextId++, text: `[${msTimestamp()}] ${msg}` }]);
+    setLogLines((prev) => [...prev.slice(-500), { id: nextId++, text: msg }]);
   }, []);
 
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [logLines]);
@@ -95,7 +95,7 @@ export function LoRaDataPage() {
   useWailsEvent<number>("lora:connstate", (state) => {
     setConnState((state || 0) as 0 | 1 | 2);
     const labels = ["Disconnected", "Connecting", "Connected"];
-    addLog(`Connection state: ${labels[state] || "Unknown"}`);
+    addLog(`[${msTimestamp()}] Connection state: ${labels[state] || "Unknown"}`);
   });
 
   // All frames: update history + NID + joystick — batched into minimal setState calls
