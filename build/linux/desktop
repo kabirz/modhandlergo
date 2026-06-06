@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
-Comment=A ModHandlerGo application
+Name=LaserRangeTool
+Comment=Laser ranging system PC tool — CAN bus debug, firmware upgrade, LoRa gateway
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/modhandlergo.exe %u
+Exec=/usr/local/bin/modhandlergo %u
 Terminal=false
 Type=Application
-Icon=modhandlergo.exe
+Icon=modhandlergo
 Categories=Utility;
-StartupWMClass=modhandlergo.exe
+StartupWMClass=modhandlergo
 
  

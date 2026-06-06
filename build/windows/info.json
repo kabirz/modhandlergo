@@ -6,10 +6,10 @@
 		"0000": {
 			"ProductVersion": "0.1.1",
 			"CompanyName": "Kabirz",
-			"FileDescription": "Laser Range Tool - CAN bus debug, firmware upgrade, LoRa gateway",
-			"LegalCopyright": "(c) 2025-2026 Kabirz",
+			"FileDescription": "Laser ranging system PC tool — CAN bus debug, firmware upgrade, LoRa gateway",
+			"LegalCopyright": "(c) 2025-2026, Kabirz",
 			"ProductName": "LaserRangeTool",
-			"Comments": "Migrated from can-uart-tool to Go + Wails v3"
+			"Comments": "Migrated from can-uart-tool (C/Win32) to Go + Wails v3"
 		}
 	}
 }
