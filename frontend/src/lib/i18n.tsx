@@ -153,6 +153,16 @@ const dict: Record<string, Record<Lang, string>> = {
   "about.license":     { zh: "许可证",       en: "License" },
   "about.ok":          { zh: "确定",         en: "OK" },
 
+  // Update check
+  "update.checking":   { zh: "检查更新中...",   en: "Checking for updates..." },
+  "update.latest":     { zh: "已是最新版本",     en: "You are up to date" },
+  "update.available":  { zh: "发现新版本",       en: "Update available" },
+  "update.current":    { zh: "当前版本",         en: "Current version" },
+  "update.latestVer":  { zh: "最新版本",         en: "Latest version" },
+  "update.download":   { zh: "下载更新",         en: "Download" },
+  "update.failed":     { zh: "检查失败",         en: "Check failed" },
+  "update.noRelease":  { zh: "暂无发布版本",     en: "No releases found" },
+
   // Common
   "common.error":     { zh: "错误",         en: "Error" },
   "common.loading":   { zh: "加载中...",     en: "Loading..." },
