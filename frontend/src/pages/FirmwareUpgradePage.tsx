@@ -105,7 +105,7 @@ export function FirmwareUpgradePage() {
 
   const handleUpgrade = async () => {
     if (!firmwarePath) {
-      addLog("Please select a firmware file first");
+      addLog(t("fw.pleaseSelect"));
       return;
     }
     try {
@@ -168,7 +168,14 @@ export function FirmwareUpgradePage() {
                 className={`relative z-10 flex-1 text-xs font-medium text-center rounded transition-colors cursor-pointer ${channel === "can" ? "text-primary-foreground" : "text-muted-foreground"}`}
               >CAN</button>
               <button
-                onClick={() => setChannel("uart")}
+                onClick={() => {
+                  setChannel("uart");
+                  // Auto-detect serial ports when switching to UART
+                  CANUpgradeService.DetectSerialPorts().then((ports) => {
+                    setSerialPorts(ports);
+                    if (ports.length > 0 && !selectedPort) setSelectedPort(ports[0].portName);
+                  }).catch(() => {});
+                }}
                 className={`relative z-10 flex-1 text-xs font-medium text-center rounded transition-colors cursor-pointer ${channel === "uart" ? "text-primary-foreground" : "text-muted-foreground"}`}
               >UART</button>
             </div>
@@ -191,7 +198,6 @@ export function FirmwareUpgradePage() {
             ) : (
               <>
                 <Select value={selectedPort} onChange={(e) => setSelectedPort(e.target.value)} className="w-44">
-                  <option value="">{t("fw.selectPort")}</option>
                   {serialPorts.map((p: SerialPortInfo) => (
                     <option key={p.portName} value={p.portName}>{p.friendlyName || p.portName}</option>
                   ))}
@@ -201,7 +207,6 @@ export function FirmwareUpgradePage() {
                     <option key={br} value={br}>{br}</option>
                   ))}
                 </Select>
-                <Button variant="outline" size="sm" onClick={handleDetectPorts}>{t("fw.detectPort")}</Button>
               </>
             )}
 
@@ -219,7 +224,7 @@ export function FirmwareUpgradePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3">
-            <Input value={firmwarePath} onChange={(e) => setFirmwarePath(e.target.value)} placeholder="Select firmware file (.bin)" className="flex-1" />
+            <Input value={firmwarePath} onChange={(e) => setFirmwarePath(e.target.value)} placeholder={t("fw.selectFile")} className="flex-1" />
             <Button variant="outline" onClick={async () => {
               try {
                 const path = await CANUpgradeService.OpenFirmwareFile();

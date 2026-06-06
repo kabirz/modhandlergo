@@ -26,9 +26,9 @@ func NewSerialClient(cb Callbacks) *SerialClient {
 // Open opens a serial port for AT commands.
 func (s *SerialClient) Open(portName string, baudRate int) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if s.isOpen {
+		s.mu.Unlock()
 		return fmt.Errorf("serial port already open")
 	}
 
@@ -39,19 +39,37 @@ func (s *SerialClient) Open(portName string, baudRate int) error {
 		StopBits: serial.OneStopBit,
 	}
 
-	port, err := serial.Open(portName, mode)
-	if err != nil {
-		return fmt.Errorf("cannot open serial port %s: %w", portName, err)
+	// Open with timeout — serial.Open can block on Windows for invalid ports
+	type result struct {
+		port serial.Port
+		err  error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		port, err := serial.Open(portName, mode)
+		ch <- result{port, err}
+	}()
+
+	var port serial.Port
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			s.mu.Unlock()
+			return fmt.Errorf("cannot open serial port %s: %w", portName, r.err)
+		}
+		port = r.port
+	case <-time.After(3 * time.Second):
+		s.mu.Unlock()
+		return fmt.Errorf("serial port %s open timed out", portName)
 	}
 
+	// Set port fields while holding lock, but release before I/O
 	s.port = port
 	s.isOpen = true
 	s.atMode = false
+	s.mu.Unlock()
 
 	s.cb.OnLog(fmt.Sprintf("serial port %s opened (%d bps)", portName, baudRate), LogSerial)
-
-	// Enter AT mode
-	s.enterATMode()
 
 	return nil
 }
@@ -82,14 +100,29 @@ func (s *SerialClient) IsOpen() bool {
 	return s.isOpen
 }
 
+// ensureATMode enters AT mode if not already in it.
+func (s *SerialClient) ensureATMode() {
+	s.mu.Lock()
+	if s.atMode {
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+
+	s.enterATMode()
+}
+
 // SendAT sends an AT command via serial port and returns the response.
 func (s *SerialClient) SendAT(cmd string) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if !s.isOpen || s.port == nil {
+		s.mu.Unlock()
 		return fmt.Errorf("serial port not open")
 	}
+	s.mu.Unlock()
+
+	// Ensure we're in AT mode before first command
+	s.ensureATMode()
 
 	if !strings.HasSuffix(cmd, "\r\n") {
 		cmd += "\r\n"
@@ -97,17 +130,21 @@ func (s *SerialClient) SendAT(cmd string) error {
 
 	s.cb.OnLog(fmt.Sprintf("serial send: %s", strings.TrimSpace(cmd)), LogSerial)
 
-	if _, err := s.port.Write([]byte(cmd)); err != nil {
+	s.mu.Lock()
+	port := s.port
+	s.mu.Unlock()
+
+	if _, err := port.Write([]byte(cmd)); err != nil {
 		return fmt.Errorf("serial write failed: %w", err)
 	}
 
 	// Read response
-	s.port.SetReadTimeout(3 * time.Second)
+	port.SetReadTimeout(3 * time.Second)
 	buf := make([]byte, 4096)
 	var response []byte
 
 	for {
-		n, err := s.port.Read(buf)
+		n, err := port.Read(buf)
 		if n > 0 {
 			response = append(response, buf[:n]...)
 		}
@@ -141,25 +178,47 @@ func (s *SerialClient) QueryNetParams() error {
 }
 
 func (s *SerialClient) enterATMode() {
-	if s.port == nil {
+	s.mu.Lock()
+	port := s.port
+	s.mu.Unlock()
+
+	if port == nil {
 		return
 	}
 
-	// Send AT command to enter AT mode
-	s.port.Write([]byte("AT\r\n"))
+	// Send AT command to enter AT mode with timeout
+	type writeResult struct {
+		n   int
+		err error
+	}
+	ch := make(chan writeResult, 1)
+	go func() {
+		n, err := port.Write([]byte("AT\r\n"))
+		ch <- writeResult{n, err}
+	}()
+
+	select {
+	case <-ch:
+	case <-time.After(1 * time.Second):
+		s.cb.OnLog("enter AT mode: write timed out, skipping", LogSerial)
+		return
+	}
+
 	time.Sleep(200 * time.Millisecond)
 
 	// Drain any response
 	buf := make([]byte, 256)
-	s.port.SetReadTimeout(500 * time.Millisecond)
+	port.SetReadTimeout(500 * time.Millisecond)
 	for {
-		n, err := s.port.Read(buf)
+		n, err := port.Read(buf)
 		if n == 0 || err != nil {
 			break
 		}
 	}
 
+	s.mu.Lock()
 	s.atMode = true
+	s.mu.Unlock()
 	s.cb.OnLog("entered AT mode", LogSerial)
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -21,6 +21,8 @@ interface SidebarProps {
   onNavigate: (pageId: string) => void;
   darkMode: boolean;
   onToggleTheme: () => void;
+  defaultShowUpdate?: boolean;
+  canConnected?: boolean;
 }
 
 function AboutDialog({ onClose }: { onClose: () => void }) {
@@ -86,7 +88,7 @@ function AboutDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function UpdateCheckDialog({ onClose }: { onClose: () => void }) {
+function UpdateCheckDialog({ onClose, autoCheck = false }: { onClose: () => void; autoCheck?: boolean }) {
   const { t } = useI18n();
   const [status, setStatus] = useState<"idle" | "checking" | "found" | "latest" | "error">("idle");
   const [latestVersion, setLatestVersion] = useState("");
@@ -98,7 +100,6 @@ function UpdateCheckDialog({ onClose }: { onClose: () => void }) {
     try {
       const resp = await fetch("https://api.github.com/repos/kabirz/modhandlergo/releases/latest", { cache: "no-store" });
       if (!resp.ok) {
-        // 404 means no releases
         setStatus("latest");
         return;
       }
@@ -107,7 +108,6 @@ function UpdateCheckDialog({ onClose }: { onClose: () => void }) {
       const ver = tag.replace(/^v/, "");
       setLatestVersion(ver || tag);
 
-      // Find .exe asset for download
       const asset = (data.assets || []).find((a: any) =>
         a.name && a.name.endsWith("-installer.exe") && a.name.includes("amd64")
       );
@@ -129,6 +129,11 @@ function UpdateCheckDialog({ onClose }: { onClose: () => void }) {
       setStatus("error");
     }
   }, []);
+
+  // Auto-check on mount when opened from startup
+  useEffect(() => {
+    if (autoCheck) checkUpdate();
+  }, [autoCheck, checkUpdate]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
@@ -211,10 +216,12 @@ function UpdateCheckDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme }: SidebarProps) {
+export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme, defaultShowUpdate = false, canConnected = false }: SidebarProps) {
   const { lang, setLang, t } = useI18n();
   const [showAbout, setShowAbout] = useState(false);
-  const [showUpdate, setShowUpdate] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(defaultShowUpdate);
+
+  const canDisabledTooltip = canConnected ? "" : t("nav.canDisabled");
 
   return (
     <>
@@ -224,15 +231,22 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme }: Sid
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activePage === item.id;
+            const isDisabled = item.id === "can-command" && !canConnected;
             return (
               <button
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
+                onClick={() => { if (!isDisabled) onNavigate(item.id); }}
+                title={isDisabled ? canDisabledTooltip : ""}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors cursor-pointer",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors",
+                  isDisabled
+                    ? "opacity-40 cursor-not-allowed"
+                    : "cursor-pointer",
+                  !isDisabled && (
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  )
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -309,7 +323,7 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme }: Sid
         </div>
       </aside>
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
-      {showUpdate && <UpdateCheckDialog onClose={() => setShowUpdate(false)} />}
+      {showUpdate && <UpdateCheckDialog onClose={() => setShowUpdate(false)} autoCheck={defaultShowUpdate} />}
     </>
   );
 }

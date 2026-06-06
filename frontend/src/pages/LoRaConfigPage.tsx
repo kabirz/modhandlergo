@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
-import { Settings, Trash2, Search, RefreshCw, Wifi, WifiOff, Zap, Router, Globe, Radio, Sliders } from "lucide-react";
+import { Settings, Trash2, Search, RefreshCw, Cable, Unplug, Zap, Globe, Radio } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { LoRaConfigService, CANUpgradeService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
@@ -33,11 +33,22 @@ const SectionHead = ({ icon, title }: { icon: React.ReactNode; title: string }) 
   </div>
 );
 
+// Label + value row with set/query buttons
+const SettingRow = ({ label, children, className = "w-14" }: {
+  label: string; children: React.ReactNode; className?: string;
+}) => (
+  <div className="flex items-center gap-2">
+    <span className={`text-[10px] text-muted-foreground text-right shrink-0 ${className}`}>{label}</span>
+    {children}
+  </div>
+);
+
 export function LoRaConfigPage() {
   const { t } = useI18n();
   const [transport, setTransport] = useState<"udp" | "serial">("udp");
   const [gatewayIP, setGatewayIP] = useState("192.168.1.100");
-  const [serialPort, setSerialPort] = useState("");
+  const [serialPorts, setSerialPorts] = useState<{ portName: string; friendlyName: string }[]>([]);
+  const [selectedPort, setSelectedPort] = useState("");
   const [baudRate, setBaudRate] = useState("115200");
   const [serialOpen, setSerialOpen] = useState(false);
   const [devMac, setDevMac] = useState("");
@@ -76,7 +87,6 @@ export function LoRaConfigPage() {
   });
   useWailsEvent<string>("lora:atresponse", (resp) => addLog(resp));
   useWailsEvent<string>("lora:gwid", (gwid) => setDevGwid(gwid));
-  // Only show UDP (src=1) and Serial (src=2) logs in config page; TCP logs go to data page
   useWailsEvent<any>("lora:log", (data) => {
     if (typeof data === "string") { addLog(data); return; }
     if (data?.src === 1 || data?.src === 2) addLog(data.msg);
@@ -88,7 +98,6 @@ export function LoRaConfigPage() {
     addLog(`Network params: IP=${params?.ip}, Mask=${params?.mask}, GW=${params?.gateway}`);
   });
 
-  // Parsed AT response events — update fields directly
   useWailsEvent<string>("lora:nwmode", (v) => { const n = parseInt(v); if (!isNaN(n)) setNwmode(n); });
   useWailsEvent<string>("lora:ttmode", (v) => { const n = parseInt(v); if (!isNaN(n)) setTtmode(n); });
   useWailsEvent<string>("lora:dhcp", (v) => setDhcpText(v));
@@ -132,39 +141,57 @@ export function LoRaConfigPage() {
 
   return (
     <div className="space-y-3">
-      {/* Transport + Device Discovery */}
+      {/* Row 1: Transport + Device Discovery */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Transport */}
+        {/* Transport — pill toggle like FirmwareUpgradePage */}
         <div className="p-3 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Settings className="h-3.5 w-3.5" />} title={t("cfg.transport")} />
           <div className="flex items-center gap-2 flex-wrap">
-            <Sel value={transport} onChange={(v) => {
-              setTransport(v as "udp" | "serial");
-              LoRaConfigService.SetATTransport(v === "serial" ? 1 : 0);
-            }}
-              options={[{ value: "udp", label: t("cfg.udp") }, { value: "serial", label: t("cfg.serial") }]} className="w-28" />
-            {transport === "udp" ? null : (
+            {/* Toggle */}
+            <div className="relative flex items-center bg-muted rounded-md p-0.5 h-7 w-44 shrink-0">
+              <div className={`absolute top-0.5 bottom-0.5 w-1/2 bg-primary rounded-[4px] transition-transform duration-200 ${transport === "serial" ? "translate-x-full" : "translate-x-0"}`} />
+              <button onClick={() => { setTransport("udp"); LoRaConfigService.SetATTransport(0); }}
+                className={`relative z-10 flex-1 text-[11px] font-medium text-center rounded transition-colors cursor-pointer ${transport === "udp" ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                {t("cfg.udp")}
+              </button>
+              <button onClick={() => {
+                setTransport("serial");
+                LoRaConfigService.SetATTransport(1);
+                // Auto-fetch serial ports when switching to serial
+                CANUpgradeService.DetectSerialPorts().then((ports) => {
+                  setSerialPorts(ports);
+                  if (ports.length > 0 && !selectedPort) setSelectedPort(ports[0].portName);
+                }).catch(() => {});
+              }}
+                className={`relative z-10 flex-1 text-[11px] font-medium text-center rounded transition-colors cursor-pointer ${transport === "serial" ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                {t("cfg.serial")}
+              </button>
+            </div>
+            {/* Serial options — inline when serial selected */}
+            {transport === "serial" && (
               <>
-                <Input value={serialPort} onChange={(e) => setSerialPort(e.target.value)} className="w-20 h-7 text-xs" placeholder="COM3" />
-                <Btn onClick={async () => {
-                  try { const ports = await CANUpgradeService.DetectSerialPorts(); addLog(`Refreshed ports: ${ports.length} found`); } catch (err: any) { addLog(`Error: ${err.message || err}`); }
-                }}><RefreshCw className="h-2.5 w-2.5" /></Btn>
-                <Sel value={baudRate} onChange={setBaudRate} className="w-20"
+                <Sel value={selectedPort} onChange={setSelectedPort} className="w-24 shrink-0"
+                  options={serialPorts.map((p) => ({ value: p.portName, label: p.friendlyName || p.portName }))} />
+                <Sel value={baudRate} onChange={setBaudRate} className="w-16 shrink-0"
                   options={["9600","19200","38400","57600","115200","230400","460800","921600"].map(b => ({ value: b, label: b }))} />
                 <Btn onClick={async () => {
                   if (serialOpen) {
-                    await LoRaConfigService.SerialClose();
+                    LoRaConfigService.SerialClose();
                     setSerialOpen(false);
                   } else {
-                    try { await LoRaConfigService.SerialOpen(serialPort, parseInt(baudRate)); setSerialOpen(true); }
-                    catch (err: any) { addLog(`Error: ${err.message || err}`); }
+                    if (!selectedPort) { addLog("Please select a serial port"); return; }
+                    try {
+                      // Always close first to avoid "already open" state
+                      LoRaConfigService.SerialClose();
+                      await LoRaConfigService.SerialOpen(selectedPort, parseInt(baudRate));
+                      const isOpen = await LoRaConfigService.SerialIsOpen();
+                      setSerialOpen(isOpen);
+                      if (isOpen) addLog(`Serial port ${selectedPort} opened`);
+                    } catch (err: any) { addLog(`Error: ${err?.message || err}`); }
                   }
                 }} variant={serialOpen ? "destructive" : "default"}>
-                  {serialOpen ? <><WifiOff className="h-2.5 w-2.5 mr-0.5" />{t("cfg.close")}</> : <><Wifi className="h-2.5 w-2.5 mr-0.5" />{t("cfg.open")}</>}
+                  {serialOpen ? <><Unplug className="h-2.5 w-2.5 mr-0.5" />{t("cfg.close")}</> : <><Cable className="h-2.5 w-2.5 mr-0.5" />{t("cfg.open")}</>}
                 </Btn>
-                <span className={`text-[10px] ${serialOpen ? "text-success font-medium" : "text-muted-foreground"}`}>
-                  {serialOpen ? "● " + t("cfg.connected") : "○ " + t("cfg.disconnected")}
-                </span>
               </>
             )}
           </div>
@@ -173,19 +200,21 @@ export function LoRaConfigPage() {
         {/* Device Discovery */}
         <div className="p-3 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Search className="h-3.5 w-3.5" />} title={t("cfg.discovery")} />
-          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+          {/* Buttons evenly distributed */}
+          <div className="grid grid-cols-4 gap-2 mb-2.5">
             <Btn onClick={() => LoRaConfigService.SearchDevices()}><Search className="h-2.5 w-2.5 mr-0.5" />{t("cfg.search")}</Btn>
             <Btn onClick={() => LoRaConfigService.GetNetParams(gatewayIP)}>{t("cfg.getNet")}</Btn>
             <Btn onClick={() => sendAT("AT+GWID?")}>{t("cfg.queryGwid")}</Btn>
             <Btn onClick={() => LoRaConfigService.Reboot(gatewayIP)}>{t("cfg.reboot")}</Btn>
           </div>
-          <div className="grid grid-cols-4 gap-x-4 gap-y-0.5 text-[11px]">
+          {/* Device info — single row, spread evenly */}
+          <div className="flex items-center justify-between text-[11px]">
             {[
-              { l: "MAC", v: devMac }, { l: "Name", v: devName }, { l: "SW", v: devSw },
-              { l: "GWID", v: devGwid },
+              { l: "MAC", v: devMac }, { l: "Name", v: devName },
+              { l: "SW", v: devSw }, { l: "GWID", v: devGwid },
             ].map(({ l, v }) => (
-              <div key={l} className="flex items-center gap-1">
-                <span className="text-muted-foreground">{l}:</span>
+              <div key={l} className="flex items-center gap-1 min-w-0 flex-1">
+                <span className="text-muted-foreground shrink-0">{l}:</span>
                 <span className="font-mono text-foreground truncate">{v || "-"}</span>
               </div>
             ))}
@@ -193,120 +222,154 @@ export function LoRaConfigPage() {
         </div>
       </div>
 
-      {/* Network + Protocol */}
+      {/* Row 2: Network + LoRa Protocol */}
       <div className="grid grid-cols-2 gap-3">
         {/* Network */}
         <div className="p-3 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Globe className="h-3.5 w-3.5" />} title={t("cfg.network")} />
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {/* DHCP */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">DHCP:</span>
-              <span className="font-mono text-[11px] min-w-[24px]">{dhcpText || "-"}</span>
-              <Btn onClick={() => sendAT("AT+DHCP?")}>{t("cfg.query")}</Btn>
-              <Btn onClick={() => sendAT("AT+DHCP=ON")}>{t("cfg.enable")}</Btn>
-              <Btn onClick={() => sendAT("AT+DHCP=OFF")}>{t("cfg.disable")}</Btn>
-            </div>
-            {/* Connection mode */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">{t("cfg.mode")}:</span>
-              <Sel value={netOption} onChange={setNetOption} className="w-16"
+            <SettingRow label="DHCP:">
+              <span className="font-mono text-[11px] min-w-[32px]">{dhcpText || "-"}</span>
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT("AT+DHCP?")}>{t("cfg.query")}</Btn>
+                <Btn onClick={() => sendAT("AT+DHCP=ON")}>{t("cfg.enable")}</Btn>
+                <Btn onClick={() => sendAT("AT+DHCP=OFF")}>{t("cfg.disable")}</Btn>
+              </div>
+            </SettingRow>
+            {/* Mode */}
+            <SettingRow label={`${t("cfg.mode")}:`}>
+              <Sel value={netOption} onChange={setNetOption} className="w-20"
                 options={["socket","serial","mqtt","ali_cloud","usr_cloud"].map(o => ({ value: o, label: o }))} />
-              <Btn onClick={() => sendAT(`AT+OPTION=${["socket","serial","mqtt","ali_cloud","usr_cloud"].indexOf(netOption)}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT("AT+OPTION?")}>{t("cfg.query")}</Btn>
-            </div>
-            {/* IP + Mask */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">IP:</span>
-              <Input value={netIP} onChange={(e) => setNetIP(e.target.value)} className="w-28 h-6 text-[11px] font-mono" />
-              <Btn onClick={() => sendAT(`AT+GWIP=${netIP}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT("AT+GWIP?")}>{t("cfg.query")}</Btn>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">{t("cfg.mask")}:</span>
-              <Input value={netMask} onChange={(e) => setNetMask(e.target.value)} className="w-28 h-6 text-[11px] font-mono" />
-              <Btn onClick={() => sendAT(`AT+MASK=${netMask}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT("AT+MASK?")}>{t("cfg.query")}</Btn>
-            </div>
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+OPTION=${["socket","serial","mqtt","ali_cloud","usr_cloud"].indexOf(netOption)}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT("AT+OPTION?")}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
+            {/* IP */}
+            <SettingRow label="IP:">
+              <Input value={netIP} onChange={(e) => setNetIP(e.target.value)} className="w-32 h-6 text-[11px] font-mono" />
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+GWIP=${netIP}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT("AT+GWIP?")}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
+            {/* Mask */}
+            <SettingRow label={`${t("cfg.mask")}:`}>
+              <Input value={netMask} onChange={(e) => setNetMask(e.target.value)} className="w-32 h-6 text-[11px] font-mono" />
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+MASK=${netMask}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT("AT+MASK?")}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
             {/* Gateway */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">{t("cfg.gateway")}:</span>
-              <Input value={netGW} onChange={(e) => setNetGW(e.target.value)} className="w-28 h-6 text-[11px] font-mono" />
-              <Btn onClick={() => sendAT(`AT+GW=${netGW}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT("AT+GW?")}>{t("cfg.query")}</Btn>
-            </div>
+            <SettingRow label={`${t("cfg.gateway")}:`}>
+              <Input value={netGW} onChange={(e) => setNetGW(e.target.value)} className="w-32 h-6 text-[11px] font-mono" />
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+GW=${netGW}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT("AT+GW?")}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
             {/* SOCKEN */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">SOCKEN:</span>
+            <SettingRow label="SOCKEN:">
               <span className="text-[10px] text-muted-foreground">A:</span>
-              <Sel value={socken} onChange={setSocken} className="w-12"
+              <Sel value={socken} onChange={setSocken} className="w-14"
                 options={[{ value: "ON", label: "ON" }, { value: "OFF", label: "OFF" }]} />
-              <Btn onClick={() => sendAT(`AT+SOCKEN=${socken},OFF`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT("AT+SOCKEN?")}>{t("cfg.query")}</Btn>
-            </div>
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+SOCKEN=${socken},OFF`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT("AT+SOCKEN?")}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
             {/* SOCKA */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">SOCKA:</span>
-              <Sel value={sockaMode} onChange={setSockaMode} className="w-14"
+            <SettingRow label="SOCKA:" className="w-14">
+              <Sel value={sockaMode} onChange={setSockaMode} className="w-16"
                 options={[{ value: "TCPC", label: "TCPC" }, { value: "TCPS", label: "TCPS" }]} />
-              <Input value={sockaIP} onChange={(e) => setSockaIP(e.target.value)} className="w-28 h-6 text-[11px] font-mono" />
-              <Input value={sockaRPort} onChange={(e) => setSockaRPort(e.target.value)} className="w-12 h-6 text-[11px] font-mono" placeholder="Remote" />
-              <Input value={sockaLPort} onChange={(e) => setSockaLPort(e.target.value)} className="w-12 h-6 text-[11px] font-mono" placeholder="Local" />
-              <Btn onClick={() => sendAT(`AT+SOCKA=${sockaMode},${sockaIP},${sockaRPort},${sockaLPort}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT("AT+SOCKA?")}>{t("cfg.query")}</Btn>
-            </div>
+              <Input value={sockaIP} onChange={(e) => setSockaIP(e.target.value)} className="w-32 h-6 text-[11px] font-mono" />
+              <Input value={sockaRPort} onChange={(e) => setSockaRPort(e.target.value)} className="w-14 h-6 text-[11px] font-mono" placeholder="Remote" />
+              <Input value={sockaLPort} onChange={(e) => setSockaLPort(e.target.value)} className="w-14 h-6 text-[11px] font-mono" placeholder="Local" />
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+SOCKA=${sockaMode},${sockaIP},${sockaRPort},${sockaLPort}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT("AT+SOCKA?")}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
           </div>
         </div>
 
         {/* LoRa Protocol */}
         <div className="p-3 rounded-lg bg-card border border-border/50">
           <SectionHead icon={<Radio className="h-3.5 w-3.5" />} title={t("cfg.loraProto")} />
-          <div className="space-y-1.5">
-            {/* NWMODE + TTMODE */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-14 text-right shrink-0">{t("cfg.mesh")}:</span>
+          <div className="space-y-2">
+            {/* Mesh */}
+            <SettingRow label={`${t("cfg.mesh")}:`} className="w-14">
               <Sel value={nwmode} onChange={(v) => setNwmode(Number(v))} className="w-12"
                 options={[{ value: 0, label: t("cfg.meshNo") }, { value: 1, label: t("cfg.meshYes") }]} />
-              <Btn onClick={() => sendAT(`AT+NWMODE=${nwmode}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT("AT+NWMODE?")}>{t("cfg.query")}</Btn>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-14 text-right shrink-0">{t("cfg.workMode")}:</span>
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+NWMODE=${nwmode}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT("AT+NWMODE?")}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
+            {/* Work Mode */}
+            <SettingRow label={`${t("cfg.workMode")}:`} className="w-14">
               <Sel value={ttmode} onChange={(v) => setTtmode(Number(v))} className="w-20" options={ttmodeOptions} />
-              <Btn onClick={() => sendAT(`AT+${isMesh ? "WMODE" : "TTMODE"}=${ttmode}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT(`AT+${isMesh ? "WMODE" : "TTMODE"}?`)}>{t("cfg.query")}</Btn>
-            </div>
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+${isMesh ? "WMODE" : "TTMODE"}=${ttmode}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT(`AT+${isMesh ? "WMODE" : "TTMODE"}?`)}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
             {/* UPWID */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-14 text-right shrink-0">{t("cfg.upwid")}:</span>
-              <span className="font-mono text-[11px]">{upwidText || "-"}</span>
-              <Btn onClick={() => sendAT("AT+UPWID?")}>{t("cfg.query")}</Btn>
-              <Btn onClick={() => sendAT("AT+UPWID=ON")}>{t("cfg.enable")}</Btn>
-              <Btn onClick={() => sendAT("AT+UPWID=OFF")}>{t("cfg.disable")}</Btn>
-            </div>
+            <SettingRow label={`${t("cfg.upwid")}:`} className="w-14">
+              <Sel value={upwidText === "ON" ? "ON" : "OFF"} onChange={(v) => setUpwidText(v)} className="w-16"
+                options={[{ value: "ON", label: t("cfg.upwidOn") }, { value: "OFF", label: t("cfg.upwidOff") }]} />
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+UPWID=${upwidText}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT("AT+UPWID?")}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
             {/* Power */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-14 text-right shrink-0">{t("cfg.power")}:</span>
+            <SettingRow label={`${t("cfg.power")}:`} className="w-14">
               <Sel value={pwr} onChange={(v) => setPwr(Number(v))} className="w-12"
                 options={[24,25,26,27,28,29,30].map(p => ({ value: p, label: String(p) }))} />
-              <Btn onClick={() => sendAT(`AT+PWR${ch}=${pwr}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT(`AT+PWR${ch}?`)}>{t("cfg.query")}</Btn>
-            </div>
-            {/* CH + Freq + Speed */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-14 text-right shrink-0">{t("cfg.channel")}:</span>
-              <Sel value={channel} onChange={setChannel} className="w-12"
-                options={[{ value: "CH1", label: "CH1" }, { value: "CH2", label: "CH2" }]} />
-              <span className="text-[10px] text-muted-foreground">{t("cfg.freq")}:</span>
-              <Sel value={freq} onChange={(v) => setFreq(Number(v))} className="w-14"
-                options={[4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100].map(f => ({ value: f, label: String(f) }))} />
-              <Btn onClick={() => sendAT(`AT+CH${ch}=${freq}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT(`AT+CH${ch}?`)}>{t("cfg.query")}</Btn>
-              <span className="text-[10px] text-muted-foreground ml-2">{t("cfg.speed")}:</span>
-              <Sel value={speed} onChange={(v) => setSpeed(Number(v))} className="w-12"
-                options={[4,5,6,7,8,9,10,11].map(s => ({ value: s, label: String(s) }))} />
-              <Btn onClick={() => sendAT(`AT+SPD${ch}=${speed}`)}>{t("cfg.set")}</Btn>
-              <Btn onClick={() => sendAT(`AT+SPD${ch}?`)}>{t("cfg.query")}</Btn>
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Btn onClick={() => sendAT(`AT+PWR${ch}=${pwr}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT(`AT+PWR${ch}?`)}>{t("cfg.query")}</Btn>
+              </div>
+            </SettingRow>
+            {/* Channel parameters group */}
+            <div className="p-2 rounded-md border border-border/40 bg-muted/30 space-y-2">
+              {/* Channel toggle + label */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground font-medium">{t("cfg.channel")}:</span>
+                <div className="relative flex items-center bg-muted rounded-md p-0.5 h-6 w-20 shrink-0">
+                  <div className={`absolute top-0.5 bottom-0.5 w-1/2 bg-primary rounded-[3px] transition-transform duration-200 ${channel === "CH2" ? "translate-x-full" : "translate-x-0"}`} />
+                  <button onClick={() => setChannel("CH1")}
+                    className={`relative z-10 flex-1 text-[10px] font-medium text-center rounded transition-colors cursor-pointer ${channel === "CH1" ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                    CH1
+                  </button>
+                  <button onClick={() => setChannel("CH2")}
+                    className={`relative z-10 flex-1 text-[10px] font-medium text-center rounded transition-colors cursor-pointer ${channel === "CH2" ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                    CH2
+                  </button>
+                </div>
+              </div>
+              {/* Freq */}
+              <SettingRow label={`${t("cfg.freq")}:`} className="w-14">
+                <Sel value={freq} onChange={(v) => setFreq(Number(v))} className="w-14"
+                  options={[4100,4200,4300,4400,4500,4600,4700,4800,4900,5000,5100].map(f => ({ value: f, label: String(f) }))} />
+                <span className="text-[10px] text-muted-foreground shrink-0">×100KHz</span>
+                <div className="flex items-center gap-0.5 ml-auto">
+                  <Btn onClick={() => sendAT(`AT+CH${ch}=${freq}`)}>{t("cfg.set")}</Btn>
+                  <Btn onClick={() => sendAT(`AT+CH${ch}?`)}>{t("cfg.query")}</Btn>
+                </div>
+              </SettingRow>
+              {/* Speed */}
+              <SettingRow label={`${t("cfg.speed")}:`} className="w-14">
+                <Sel value={speed} onChange={(v) => setSpeed(Number(v))} className="w-12"
+                  options={[4,5,6,7,8,9,10,11].map(s => ({ value: s, label: String(s) }))} />
+                <div className="flex items-center gap-0.5 ml-auto">
+                  <Btn onClick={() => sendAT(`AT+SPD${ch}=${speed}`)}>{t("cfg.set")}</Btn>
+                  <Btn onClick={() => sendAT(`AT+SPD${ch}?`)}>{t("cfg.query")}</Btn>
+                </div>
+              </SettingRow>
             </div>
           </div>
         </div>

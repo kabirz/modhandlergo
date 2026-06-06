@@ -21,6 +21,7 @@ const dict: Record<string, Record<Lang, string>> = {
   "nav.loraConfig":   { zh: "LoRa 配置",   en: "LoRa Config" },
   "nav.firmware":     { zh: "固件升级",     en: "Firmware" },
   "nav.canCommand":   { zh: "CAN 命令",    en: "CAN Command" },
+  "nav.canDisabled":  { zh: "请先在固件升级中打开CAN设备", en: "Open CAN device in Firmware page first" },
   "sidebar.theme":    { zh: "主题",         en: "Theme" },
   "sidebar.light":    { zh: "亮色",         en: "Light" },
   "sidebar.dark":     { zh: "暗色",         en: "Dark" },
@@ -89,7 +90,9 @@ const dict: Record<string, Record<Lang, string>> = {
   "cfg.broadcast":    { zh: "广播透传",     en: "Broadcast" },
   "cfg.targetNode":   { zh: "指定节点",     en: "Target Node" },
   "cfg.activeReport": { zh: "主动上报",     en: "Active Report" },
-  "cfg.upwid":        { zh: "上行携带ID",   en: "UPWID" },
+  "cfg.upwid":        { zh: "上行ID",         en: "UPWID" },
+  "cfg.upwidOn":      { zh: "携带",           en: "On" },
+  "cfg.upwidOff":     { zh: "不携带",         en: "Off" },
   "cfg.power":        { zh: "功率",         en: "Power" },
   "cfg.channel":      { zh: "通道",         en: "Channel" },
   "cfg.freq":         { zh: "频率",         en: "Freq" },
@@ -116,6 +119,8 @@ const dict: Record<string, Record<Lang, string>> = {
   "fw.log":           { zh: "日志",         en: "Log" },
   "fw.waitOp":        { zh: "等待操作...",   en: "Waiting..." },
   "fw.selectDev":     { zh: "选择设备",     en: "Select Device" },
+  "fw.selectFile":    { zh: "选择固件文件 (.bin)", en: "Select firmware file (.bin)" },
+  "fw.pleaseSelect":  { zh: "请先选择固件文件", en: "Please select a firmware file first" },
 
   // CAN Command
   "can.frameConfig":  { zh: "帧配置",       en: "Frame Config" },
@@ -154,7 +159,8 @@ const dict: Record<string, Record<Lang, string>> = {
   "about.ok":          { zh: "确定",         en: "OK" },
 
   // Update check
-  "update.checking":   { zh: "检查更新中...",   en: "Checking for updates..." },
+  "update.check":      { zh: "检查更新",         en: "Check for updates" },
+  "update.checking":   { zh: "检查更新中...",     en: "Checking for updates..." },
   "update.latest":     { zh: "已是最新版本",     en: "You are up to date" },
   "update.available":  { zh: "发现新版本",       en: "Update available" },
   "update.current":    { zh: "当前版本",         en: "Current version" },

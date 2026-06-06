@@ -4,6 +4,8 @@ package uartmanager
 import (
 	"fmt"
 	"io"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -192,6 +194,11 @@ func (m *Manager) EnumPorts() ([]SerialPortInfo, error) {
 		})
 	}
 
+	// Sort by numeric suffix (COM1, COM2, COM10 etc.)
+	sort.Slice(result, func(i, j int) bool {
+		return extractPortNum(result[i].FriendlyName) < extractPortNum(result[j].FriendlyName)
+	})
+
 	m.log(fmt.Sprintf("Found %d available serial ports", len(result)))
 	return result, nil
 }
@@ -310,4 +317,17 @@ func (m *Manager) Read(buf []byte) (int, error) {
 		return 0, io.ErrClosedPipe
 	}
 	return m.port.Read(buf)
+}
+
+// extractPortNum extracts the trailing number from a port name like "COM3" or "/dev/ttyUSB0".
+func extractPortNum(name string) int {
+	// Strip common prefixes
+	for _, prefix := range []string{"COM", "com", "ttyUSB", "ttyACM", "/dev/"} {
+		if strings.HasPrefix(name, prefix) {
+			name = strings.TrimPrefix(name, prefix)
+			break
+		}
+	}
+	n, _ := strconv.Atoi(name)
+	return n
 }

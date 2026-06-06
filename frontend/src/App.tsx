@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { Sidebar } from "@/components/layout/sidebar";
+import { Sidebar, APP_VERSION } from "@/components/layout/sidebar";
 import { I18nProvider } from "@/lib/i18n";
+import { useWailsEvent } from "@/hooks/useEvents";
 import { LoRaDataPage } from "@/pages/LoRaDataPage";
 import { LoRaConfigPage } from "@/pages/LoRaConfigPage";
 import { FirmwareUpgradePage } from "@/pages/FirmwareUpgradePage";
@@ -26,15 +27,53 @@ function applyTheme(mode: ThemeMode) {
   }
 }
 
+/** Compare semver strings, returns true if `latest` is newer than `current`. */
+function isNewerVersion(current: string, latest: string): boolean {
+  const cur = current.split(".").map(Number);
+  const lat = latest.split(".").map(Number);
+  for (let i = 0; i < Math.max(cur.length, lat.length); i++) {
+    const c = cur[i] || 0;
+    const l = lat[i] || 0;
+    if (l > c) return true;
+    if (l < c) return false;
+  }
+  return false;
+}
+
 function App() {
   const [activePage, setActivePage] = useState<PageId>("lora-data");
   const [darkMode, setDarkMode] = useState<ThemeMode>(getInitialTheme);
+  const [showUpdateOnStart, setShowUpdateOnStart] = useState(false);
+  const [canConnected, setCanConnected] = useState(false);
+
+  // Listen for CAN connection state
+  useWailsEvent<number>("can:connected", () => setCanConnected(true));
+  useWailsEvent<any>("can:disconnected", () => setCanConnected(false));
 
   // Apply theme on mount and when it changes
   useEffect(() => {
     applyTheme(darkMode);
     localStorage.setItem("modhandler-theme", darkMode);
   }, [darkMode]);
+
+  // Auto-check for updates on startup
+  useEffect(() => {
+    const checkOnStart = async () => {
+      try {
+        const resp = await fetch("https://api.github.com/repos/kabirz/modhandlergo/releases/latest", { cache: "no-store" });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const tag: string = data.tag_name || "";
+        const ver = tag.replace(/^v/, "");
+        if (ver && isNewerVersion(APP_VERSION, ver)) {
+          setShowUpdateOnStart(true);
+        }
+      } catch {
+        // Silently ignore — user can check manually via version button
+      }
+    };
+    checkOnStart();
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setDarkMode((prev) => (prev === "dark" ? "light" : "dark"));
@@ -48,6 +87,8 @@ function App() {
         onNavigate={(id) => setActivePage(id as PageId)}
         darkMode={darkMode === "dark"}
         onToggleTheme={toggleTheme}
+        defaultShowUpdate={showUpdateOnStart}
+        canConnected={canConnected}
       />
       <main className="flex-1 overflow-hidden p-6">
         <div className="h-full overflow-y-auto">
