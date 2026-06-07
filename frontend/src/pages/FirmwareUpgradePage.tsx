@@ -53,18 +53,13 @@ export function FirmwareUpgradePage() {
   useWailsEvent<string>("uart:log", (msg) => addLog(msg));
   useWailsEvent<number>("uart:progress", (pct) => setProgress(pct));
 
-  const handleDetectDevices = async () => {
-    try {
-      const devices = await CANUpgradeService.DetectCANDevices();
+  // Auto-detect CAN devices on mount
+  useEffect(() => {
+    CANUpgradeService.DetectCANDevices().then((devices) => {
       setCanDevices(devices);
-      if (devices.length > 0) {
-        setSelectedDevice(devices[0].toString());
-      }
-      addLog(`Detected ${devices.length} CAN device(s)`);
-    } catch (err: any) {
-      addLog(`Error: ${err.message || err}`);
-    }
-  };
+      if (devices.length > 0) setSelectedDevice(devices[0].toString());
+    }).catch(() => {});
+  }, []);
 
   const handleDetectPorts = async () => {
     try {
@@ -164,7 +159,14 @@ export function FirmwareUpgradePage() {
             <div className="relative flex items-center bg-muted rounded-md p-0.5 h-7 w-28">
               <div className={`absolute top-0.5 bottom-0.5 w-1/2 bg-primary rounded-[4px] transition-transform duration-200 ${channel === "uart" ? "translate-x-full" : "translate-x-0"}`} />
               <button
-                onClick={() => setChannel("can")}
+                onClick={() => {
+                  setChannel("can");
+                  // Auto-detect CAN devices when switching to CAN
+                  CANUpgradeService.DetectCANDevices().then((devices) => {
+                    setCanDevices(devices);
+                    if (devices.length > 0) setSelectedDevice(devices[0].toString());
+                  }).catch(() => {});
+                }}
                 className={`relative z-10 flex-1 text-xs font-medium text-center rounded transition-colors cursor-pointer ${channel === "can" ? "text-primary-foreground" : "text-muted-foreground"}`}
               >CAN</button>
               <button
@@ -193,7 +195,6 @@ export function FirmwareUpgradePage() {
                     <option key={i} value={i.toString()}>{br}</option>
                   ))}
                 </Select>
-                <Button variant="outline" size="sm" onClick={handleDetectDevices}>{t("fw.detectDev")}</Button>
               </>
             ) : (
               <>
