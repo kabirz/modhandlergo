@@ -136,9 +136,13 @@ export function LoRaConfigPage() {
   };
 
   const isMesh = nwmode === 1;
-  const ttmodeOptions = isMesh
+  // 不组网模式: TTMODE 0=广播透传 / 1=指定节点
+  // 组网模式:   WMODE  0=广播透传 / 1=指定节点 / 2=主动上报
+  const workModeOptions = isMesh
     ? [{ value: 0, label: t("cfg.broadcast") }, { value: 1, label: t("cfg.targetNode") }, { value: 2, label: t("cfg.activeReport") }]
     : [{ value: 0, label: t("cfg.broadcast") }, { value: 1, label: t("cfg.targetNode") }];
+  const workModeCmd = isMesh ? "WMODE" : "TTMODE";
+  const workModeVal = isMesh ? wmode : ttmode;
   const ch = channel === "CH1" ? "1" : "2";
 
   return (
@@ -307,16 +311,20 @@ export function LoRaConfigPage() {
               <Sel value={nwmode} onChange={(v) => setNwmode(Number(v))} className="w-12"
                 options={[{ value: 0, label: t("cfg.meshNo") }, { value: 1, label: t("cfg.meshYes") }]} />
               <div className="flex items-center gap-0.5 ml-auto">
-                <Btn onClick={() => sendAT(`AT+NWMODE=${nwmode}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={async () => {
+                  await sendAT(`AT+NWMODE=${nwmode}`);
+                  // 组网模式切换后自动查询对应的工作模式
+                  sendAT(`AT+${nwmode === 1 ? "WMODE" : "TTMODE"}?`);
+                }}>{t("cfg.set")}</Btn>
                 <Btn onClick={() => sendAT("AT+NWMODE?")}>{t("cfg.query")}</Btn>
               </div>
             </SettingRow>
             {/* Work Mode */}
             <SettingRow label={`${t("cfg.workMode")}:`} className="w-14">
-              <Sel value={isMesh ? wmode : ttmode} onChange={(v) => { const n = Number(v); if (isMesh) setWmode(n); else setTtmode(n); }} className="w-20" options={ttmodeOptions} />
+              <Sel value={workModeVal} onChange={(v) => { const n = Number(v); if (isMesh) setWmode(n); else setTtmode(n); }} className="w-20" options={workModeOptions} />
               <div className="flex items-center gap-0.5 ml-auto">
-                <Btn onClick={() => sendAT(`AT+${isMesh ? "WMODE" : "TTMODE"}=${ttmode}`)}>{t("cfg.set")}</Btn>
-                <Btn onClick={() => sendAT(`AT+${isMesh ? "WMODE" : "TTMODE"}?`)}>{t("cfg.query")}</Btn>
+                <Btn onClick={() => sendAT(`AT+${workModeCmd}=${workModeVal}`)}>{t("cfg.set")}</Btn>
+                <Btn onClick={() => sendAT(`AT+${workModeCmd}?`)}>{t("cfg.query")}</Btn>
               </div>
             </SettingRow>
             {/* UPWID */}

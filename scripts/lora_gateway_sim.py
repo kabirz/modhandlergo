@@ -756,6 +756,9 @@ Simulator Commands:
   auto [on|off] [interval]     Toggle auto telemetry (default: 2s)
   nid [hex]                    Set/get simulated NID
   gwid [hex]                   Set/get simulated GWID
+  nwmode [0|1]                 Set/get networking mode (0=transparent, 1=mesh)
+  ttmode [0|1]                 Set/get work mode under non-mesh (0=broadcast, 1=target)
+  wmode [0|1|2]                Set/get work mode under mesh (0=broadcast, 1=target, 2=report)
   stats                        Show TX/RX/ERR statistics
   help                         Show this help
   quit                         Stop simulator
@@ -879,6 +882,46 @@ def main():
                         print("  Invalid hex")
                 else:
                     print(f"  GWID: {cfg.gwid:08X}")
+
+            elif cmd == "nwmode":
+                if arg:
+                    try:
+                        cfg.nwmode = int(arg.strip())
+                        print(f"  NWMODE set to {cfg.nwmode} ({'mesh' if cfg.nwmode else 'transparent'})")
+                    except ValueError:
+                        print("  Invalid value (0 or 1)")
+                else:
+                    print(f"  NWMODE: {cfg.nwmode} ({'mesh' if cfg.nwmode else 'transparent'})")
+
+            elif cmd == "ttmode":
+                if arg:
+                    try:
+                        v = int(arg.strip())
+                        if v not in (0, 1):
+                            print("  Invalid value (0=broadcast, 1=target)")
+                        else:
+                            cfg.ttmode = v
+                            print(f"  TTMODE set to {cfg.ttmode} ({'target' if cfg.ttmode else 'broadcast'})")
+                    except ValueError:
+                        print("  Invalid value")
+                else:
+                    print(f"  TTMODE: {cfg.ttmode} ({'target' if cfg.ttmode else 'broadcast'}) — non-mesh work mode")
+
+            elif cmd == "wmode":
+                if arg:
+                    try:
+                        v = int(arg.strip())
+                        if v not in (0, 1, 2):
+                            print("  Invalid value (0=broadcast, 1=target, 2=active report)")
+                        else:
+                            cfg.wmode = v
+                            labels = {0: "broadcast", 1: "target", 2: "active report"}
+                            print(f"  WMODE set to {cfg.wmode} ({labels[cfg.wmode]})")
+                    except ValueError:
+                        print("  Invalid value")
+                else:
+                    labels = {0: "broadcast", 1: "target", 2: "active report"}
+                    print(f"  WMODE: {cfg.wmode} ({labels[cfg.wmode]}) — mesh work mode")
 
             elif cmd == "stats":
                 print(
