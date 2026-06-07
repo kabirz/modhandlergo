@@ -112,8 +112,8 @@ func TestPackScannerData_Roundtrip(t *testing.T) {
 		CoordX:         12345,
 		// CoordY: -6789 — use bit pattern to avoid overflow in test
 		// The struct field is int32, so we assign directly
-		CoordY:         -6789,
-		CoordZ:         42,
+		CoordY: -6789,
+		CoordZ: 42,
 	}
 
 	buf := make([]byte, ScannerFrameSize)

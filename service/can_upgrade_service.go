@@ -13,10 +13,10 @@ import (
 
 // CANUpgradeService provides firmware upgrade operations for the frontend.
 type CANUpgradeService struct {
-	app      *application.App
-	common   *CommonService
-	canMgr   *canmanager.Manager
-	uartMgr  *uartmanager.Manager
+	app     *application.App
+	common  *CommonService
+	canMgr  *canmanager.Manager
+	uartMgr *uartmanager.Manager
 }
 
 // NewCANUpgradeService creates a new firmware upgrade service.

@@ -7,7 +7,7 @@ import "time"
 type BaudRate int
 
 const (
-	Baud10K  BaudRate = iota
+	Baud10K BaudRate = iota
 	Baud20K
 	Baud50K
 	Baud100K
@@ -51,7 +51,7 @@ type Frame struct {
 type Adapter int
 
 const (
-	AdapterPCAN      Adapter = iota
+	AdapterPCAN Adapter = iota
 	AdapterSocketCAN
 	AdapterCount
 )

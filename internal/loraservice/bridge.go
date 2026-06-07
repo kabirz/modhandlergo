@@ -83,15 +83,15 @@ func (b *Bridge) OnFrame(nid uint32, payload []byte) {
 		if sd, ok := lorasdk.ParseScannerData(payload); ok {
 			b.emit("lora:scanner", map[string]interface{}{
 				"nid":            nid,
-					"overbreakValid": sd.OverbreakValid,
-					"laserValid":     sd.LaserValid,
-					"coordZValid":    sd.CoordZValid,
-					"coordXYValid":   sd.CoordXYValid,
-					"overbreak":      sd.Overbreak,
-					"laser":          sd.Laser,
-					"coordX":         sd.CoordX,
-					"coordY":         sd.CoordY,
-					"coordZ":         sd.CoordZ,
+				"overbreakValid": sd.OverbreakValid,
+				"laserValid":     sd.LaserValid,
+				"coordZValid":    sd.CoordZValid,
+				"coordXYValid":   sd.CoordXYValid,
+				"overbreak":      sd.Overbreak,
+				"laser":          sd.Laser,
+				"coordX":         sd.CoordX,
+				"coordY":         sd.CoordY,
+				"coordZ":         sd.CoordZ,
 			})
 		}
 		// Echo: send scanner merged frame back (matches C code behavior)

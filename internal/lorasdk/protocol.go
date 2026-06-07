@@ -30,7 +30,7 @@ func (s ConnState) String() string {
 type LogSource int
 
 const (
-	LogTCP    LogSource = iota
+	LogTCP LogSource = iota
 	LogUDP
 	LogSerial
 )
@@ -58,17 +58,17 @@ const (
 
 // Wire protocol constants
 const (
-	FrameHdr1       = 0xAA
-	FrameHdr2       = 0x55
-	FrameOverhead   = 10 // HDR(2) + NID(4) + LEN(2) + CRC(2)
-	FrameWrapper    = 4  // 2 header + 2 footer (\r\n)
-	CRLF            = "\r\n"
+	FrameHdr1     = 0xAA
+	FrameHdr2     = 0x55
+	FrameOverhead = 10 // HDR(2) + NID(4) + LEN(2) + CRC(2)
+	FrameWrapper  = 4  // 2 header + 2 footer (\r\n)
+	CRLF          = "\r\n"
 
 	DataHandler = 0x01
 	DataTest    = 0x02
 	DataRSSI    = 0x03
 
-	ScannerFrameSize = 20
+	ScannerFrameSize  = 20
 	ScannerFOverBreak = 0x01
 	ScannerFLaser     = 0x02
 	ScannerFCoordZ    = 0x04
@@ -77,15 +77,15 @@ const (
 
 // ScannerData represents parsed scanner telemetry data.
 type ScannerData struct {
-	OverbreakValid bool    `json:"overbreakValid"`
-	LaserValid     bool    `json:"laserValid"`
-	CoordZValid    bool    `json:"coordZValid"`
-	CoordXYValid   bool    `json:"coordXYValid"`
-	Overbreak      int16   `json:"overbreak"`
-	Laser          uint32  `json:"laser"`
-	CoordX         int32   `json:"coordX"`
-	CoordY         int32   `json:"coordY"`
-	CoordZ         int32   `json:"coordZ"`
+	OverbreakValid bool   `json:"overbreakValid"`
+	LaserValid     bool   `json:"laserValid"`
+	CoordZValid    bool   `json:"coordZValid"`
+	CoordXYValid   bool   `json:"coordXYValid"`
+	Overbreak      int16  `json:"overbreak"`
+	Laser          uint32 `json:"laser"`
+	CoordX         int32  `json:"coordX"`
+	CoordY         int32  `json:"coordY"`
+	CoordZ         int32  `json:"coordZ"`
 }
 
 // ParseScannerData parses a merged scanner frame payload into ScannerData.
@@ -188,10 +188,10 @@ func crc16CCITT(seed uint16, data []byte) uint16 {
 
 // DeviceInfo represents a discovered LoRa gateway device.
 type DeviceInfo struct {
-	MAC        string `json:"mac"`
-	Name       string `json:"name"`
-	Version    string `json:"version"`
-	IP         string `json:"ip"`
+	MAC     string `json:"mac"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	IP      string `json:"ip"`
 }
 
 // NetParams represents network parameters of a LoRa gateway.

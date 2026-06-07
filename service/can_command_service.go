@@ -13,10 +13,10 @@ import (
 // CANCommandService provides CAN frame send/receive, bus monitoring,
 // and LoRa remote configuration via CAN (0x105/0x106).
 type CANCommandService struct {
-	app     *application.App
-	common  *CommonService
-	cmd     *cancommand.Command
-	canMgr  *canmanager.Manager
+	app    *application.App
+	common *CommonService
+	cmd    *cancommand.Command
+	canMgr *canmanager.Manager
 }
 
 // NewCANCommandService creates a new CAN command service.

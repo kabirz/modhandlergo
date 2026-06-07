@@ -189,7 +189,7 @@ func (m *Manager) EnumPorts() ([]SerialPortInfo, error) {
 		}
 
 		result = append(result, SerialPortInfo{
-			PortName:    p,
+			PortName:     p,
 			FriendlyName: name,
 		})
 	}

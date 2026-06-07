@@ -7,8 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kabirz/modhandlergo/internal/canhal"
 	"github.com/kabirz/modhandlergo/internal/candispatcher"
+	"github.com/kabirz/modhandlergo/internal/canhal"
 	"github.com/kabirz/modhandlergo/internal/canmanager"
 )
 
@@ -32,13 +32,13 @@ type FrameEvent struct {
 
 // Command manages CAN frame sending, bus monitoring, and quick commands.
 type Command struct {
-	mu          sync.Mutex
-	backend     canhal.Backend
-	dispatcher  *candispatcher.Dispatcher
-	channel     int
-	monitoring  atomic.Bool
-	unsub       func()
-	onFrame     func(FrameEvent)
+	mu         sync.Mutex
+	backend    canhal.Backend
+	dispatcher *candispatcher.Dispatcher
+	channel    int
+	monitoring atomic.Bool
+	unsub      func()
+	onFrame    func(FrameEvent)
 
 	quickCommands []QuickCommand
 }
@@ -163,16 +163,16 @@ func (c *Command) GetQuickCommands() []QuickCommand {
 
 // frameIDLabels maps known CAN frame IDs to human-readable labels.
 var frameIDLabels = map[uint32]string{
-	canmanager.PlatformRx:     "Control Command",
-	canmanager.PlatformTx:     "Response Frame",
-	canmanager.FWDataRx:       "Firmware Data",
-	canmanager.Heartbeat:      "Heartbeat",
+	canmanager.PlatformRx:      "Control Command",
+	canmanager.PlatformTx:      "Response Frame",
+	canmanager.FWDataRx:        "Firmware Data",
+	canmanager.Heartbeat:       "Heartbeat",
 	canmanager.ControllerState: "Controller State",
-	canmanager.LaserRanging:   "Laser Ranging",
-	canmanager.CoordXY:        "X/Y Coordinates",
-	canmanager.CoordZ:         "Z Coordinate",
-	canmanager.LoraConfigCmd:  "LoRa Config",
-	canmanager.LoraConfigResp: "LoRa Config Response",
+	canmanager.LaserRanging:    "Laser Ranging",
+	canmanager.CoordXY:         "X/Y Coordinates",
+	canmanager.CoordZ:          "Z Coordinate",
+	canmanager.LoraConfigCmd:   "LoRa Config",
+	canmanager.LoraConfigResp:  "LoRa Config Response",
 }
 
 // FrameIDLabel returns a human-readable label for known CAN frame IDs.

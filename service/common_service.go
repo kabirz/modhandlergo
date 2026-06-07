@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/kabirz/modhandlergo/internal/canhal"
-	"github.com/kabirz/modhandlergo/internal/candispatcher"
-	"github.com/kabirz/modhandlergo/internal/canmanager"
 	"github.com/kabirz/modhandlergo/internal/cancommand"
+	"github.com/kabirz/modhandlergo/internal/candispatcher"
+	"github.com/kabirz/modhandlergo/internal/canhal"
+	"github.com/kabirz/modhandlergo/internal/canmanager"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // CommonService holds shared CAN infrastructure and adapter selection state.
 // It is the first service registered and provides shared instances to other services.
 type CommonService struct {
-	mu         sync.Mutex
-	backend    canhal.Backend
-	dispatcher *candispatcher.Dispatcher
+	mu          sync.Mutex
+	backend     canhal.Backend
+	dispatcher  *candispatcher.Dispatcher
 	adapterType canhal.Adapter
 }
 

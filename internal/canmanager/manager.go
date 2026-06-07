@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kabirz/modhandlergo/internal/canhal"
 	"github.com/kabirz/modhandlergo/internal/candispatcher"
+	"github.com/kabirz/modhandlergo/internal/canhal"
 	"github.com/kabirz/modhandlergo/internal/upgrade"
 )
 
@@ -168,7 +168,6 @@ func (m *Manager) Disconnect() {
 	m.channel = canhal.InvalidChannel
 	m.virtualMode = false
 }
-
 
 // GetFirmwareVersion queries the board firmware version via CAN.
 func (m *Manager) GetFirmwareVersion() (uint32, error) {

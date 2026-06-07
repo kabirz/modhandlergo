@@ -24,9 +24,9 @@ type Dispatcher struct {
 	nextSubID   uint64
 
 	// Synchronous wait: for request/response protocol (firmware upgrade).
-	waitCh  chan *canhal.Frame
-	waitID  uint32
-	waitMu  sync.Mutex
+	waitCh chan *canhal.Frame
+	waitID uint32
+	waitMu sync.Mutex
 
 	running atomic.Bool
 
@@ -111,7 +111,6 @@ func (d *Dispatcher) WaitFrame(expectedID uint32, timeout time.Duration) (*canha
 		return nil, fmt.Errorf("wait for frame 0x%03X timed out", expectedID)
 	}
 }
-
 
 func (d *Dispatcher) readLoop(ctx context.Context) {
 	for {

@@ -18,11 +18,11 @@ const (
 // UDPClient handles UDP device discovery and AT command transport.
 // Uses USR1566 JSON protocol matching the USR-LG210-L gateway.
 type UDPClient struct {
-	mu       sync.Mutex
-	cb       Callbacks
-	devMAC   string
-	devGWID  string
-	localIP  string // known local interface IP — re-use after first success
+	mu      sync.Mutex
+	cb      Callbacks
+	devMAC  string
+	devGWID string
+	localIP string // known local interface IP — re-use after first success
 }
 
 func NewUDPClient(cb Callbacks) *UDPClient {

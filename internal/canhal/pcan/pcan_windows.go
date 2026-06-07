@@ -14,7 +14,7 @@ import (
 type BaudRate int
 
 const (
-	Baud10K  BaudRate = iota
+	Baud10K BaudRate = iota
 	Baud20K
 	Baud50K
 	Baud100K
@@ -57,8 +57,8 @@ var (
 )
 
 const (
-	pcanErrorOK        = 0x00000
-	pcanErrorQRCVEmpty = 0x00020
+	pcanErrorOK         = 0x00000
+	pcanErrorQRCVEmpty  = 0x00020
 	pcanMessageStandard = 0x00
 	pcanMessageRTR      = 0x01
 	pcanMessageExtended = 0x02
@@ -223,7 +223,7 @@ func (b *Backend) SetFilter(fromID, toID uint32) error {
 }
 
 func (b *Backend) IsConnected() bool { return b.connected }
-func (b *Backend) Channel() int     { return b.channel }
+func (b *Backend) Channel() int      { return b.channel }
 
 func (b *Backend) Close() error {
 	if b.connected {

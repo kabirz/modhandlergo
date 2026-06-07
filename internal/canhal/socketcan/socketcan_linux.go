@@ -18,7 +18,7 @@ import (
 type BaudRate int
 
 const (
-	Baud10K  BaudRate = iota
+	Baud10K BaudRate = iota
 	Baud20K
 	Baud50K
 	Baud100K

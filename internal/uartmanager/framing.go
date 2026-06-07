@@ -13,13 +13,12 @@ const (
 	FrameTypeData = 0x02
 )
 
-
 // MaxDataLen is the maximum data payload in a UART frame.
 const MaxDataLen = 8
 
 // SerialPortInfo describes a detected serial port.
 type SerialPortInfo struct {
-	PortName    string `json:"portName"`
+	PortName     string `json:"portName"`
 	FriendlyName string `json:"friendlyName"`
 }
 

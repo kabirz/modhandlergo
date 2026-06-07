@@ -90,7 +90,7 @@ func main() {
 			TitleBar:                application.MacTitleBarHiddenInset,
 		},
 		BackgroundColour: application.NewRGB(24, 24, 27),
-		URL:               "/",
+		URL:              "/",
 	})
 
 	err := app.Run()

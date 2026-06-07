@@ -11,11 +11,11 @@ import (
 
 // TCPClient manages the TCP connection to the LoRa gateway for data streaming.
 type TCPClient struct {
-	mu       sync.Mutex
-	conn     net.Conn
-	cb       Callbacks
-	cancel   context.CancelFunc
-	running  bool
+	mu        sync.Mutex
+	conn      net.Conn
+	cb        Callbacks
+	cancel    context.CancelFunc
+	running   bool
 	connState ConnState
 }
 

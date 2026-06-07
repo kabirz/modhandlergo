@@ -11,11 +11,11 @@ import (
 
 // SerialClient manages serial port AT command transport.
 type SerialClient struct {
-	mu      sync.Mutex
-	port    serial.Port
-	isOpen  bool
-	atMode  bool
-	cb      Callbacks
+	mu     sync.Mutex
+	port   serial.Port
+	isOpen bool
+	atMode bool
+	cb     Callbacks
 }
 
 // NewSerialClient creates a new serial AT client.

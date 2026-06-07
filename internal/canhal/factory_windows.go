@@ -13,12 +13,12 @@ type pcanAdapter struct {
 	inner *pcan.Backend
 }
 
-func (a *pcanAdapter) Name() string                          { return a.inner.Name() }
-func (a *pcanAdapter) DetectDevices() ([]int, error)         { return a.inner.DetectDevices() }
-func (a *pcanAdapter) IsConnected() bool                     { return a.inner.IsConnected() }
-func (a *pcanAdapter) Channel() int                          { return a.inner.Channel() }
-func (a *pcanAdapter) Close() error                          { return a.inner.Close() }
-func (a *pcanAdapter) Disconnect() error                     { return a.inner.Disconnect() }
+func (a *pcanAdapter) Name() string                  { return a.inner.Name() }
+func (a *pcanAdapter) DetectDevices() ([]int, error) { return a.inner.DetectDevices() }
+func (a *pcanAdapter) IsConnected() bool             { return a.inner.IsConnected() }
+func (a *pcanAdapter) Channel() int                  { return a.inner.Channel() }
+func (a *pcanAdapter) Close() error                  { return a.inner.Close() }
+func (a *pcanAdapter) Disconnect() error             { return a.inner.Disconnect() }
 
 func (a *pcanAdapter) Connect(channel int, baud BaudRate) error {
 	return a.inner.Connect(channel, pcan.BaudRate(baud))

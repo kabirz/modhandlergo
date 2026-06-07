@@ -13,12 +13,12 @@ type socketcanAdapter struct {
 	inner *socketcan.Backend
 }
 
-func (a *socketcanAdapter) Name() string                          { return a.inner.Name() }
-func (a *socketcanAdapter) DetectDevices() ([]int, error)         { return a.inner.DetectDevices() }
-func (a *socketcanAdapter) IsConnected() bool                     { return a.inner.IsConnected() }
-func (a *socketcanAdapter) Channel() int                          { return a.inner.Channel() }
-func (a *socketcanAdapter) Close() error                          { return a.inner.Close() }
-func (a *socketcanAdapter) Disconnect() error                     { return a.inner.Disconnect() }
+func (a *socketcanAdapter) Name() string                  { return a.inner.Name() }
+func (a *socketcanAdapter) DetectDevices() ([]int, error) { return a.inner.DetectDevices() }
+func (a *socketcanAdapter) IsConnected() bool             { return a.inner.IsConnected() }
+func (a *socketcanAdapter) Channel() int                  { return a.inner.Channel() }
+func (a *socketcanAdapter) Close() error                  { return a.inner.Close() }
+func (a *socketcanAdapter) Disconnect() error             { return a.inner.Disconnect() }
 
 func (a *socketcanAdapter) Connect(channel int, baud BaudRate) error {
 	return a.inner.Connect(channel, socketcan.BaudRate(baud))
