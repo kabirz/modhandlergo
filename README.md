@@ -18,6 +18,9 @@
 - 设备搜索与发现，设备信息平铺展示
 - 网络参数配置 (IP/掩码/网关/DHCP/SOCKA/SOCKEN)
 - LoRa 协议参数配置 (组网模式/工作模式/通道滑动切换/频率×100KHz/速度/功率/上行ID携带选择)
+  - 不组网(NWMODE=0): TTMODE 广播透传/指定节点
+  - 组网(NWMODE=1): WMODE 广播透传/指定节点/主动上报
+  - 切换组网模式后自动查询对应工作模式
 - AT 命令控制台 + 响应日志
 
 ### 固件升级
@@ -144,6 +147,8 @@ ModHandlerGo/
 │   └── windows/
 │       ├── icon.svg                 # 矢量 Logo
 │       └── icon.ico                 # Windows 图标 (16-256px)
+├── scripts/
+│   └── lora_gateway_sim.py          # LoRa 网关模拟器 (TCP+UDP, 用于测试)
 ├── .github/workflows/release.yml    # GitHub Actions CI/CD
 ├── go.mod
 └── Taskfile.yml

@@ -25,9 +25,11 @@
 │   ├── lorasdk/                # LoRa SDK: TCP 数据流 / UDP 发现 / Serial AT
 │   └── loraservice/            # Wails 事件桥接
 ├── service/                    # Wails 服务绑定层 (5 个 service)
+├── scripts/
+│   └── lora_gateway_sim.py     # LoRa 网关模拟器 (TCP+UDP, 用于测试)
 ├── frontend/src/
 │   ├── App.tsx                 # 左侧边栏 + 页面路由
-│   ├── lib/i18n.tsx            # 中英文翻译 (100+ 键)
+│   ├── lib/i18n.tsx            # 中英文翻译 (120+ 键)
 │   ├── hooks/useEvents.ts      # Wails 事件监听 (useRef 保持稳定)
 │   ├── components/              # shadcn/ui 风格组件
 │   └── pages/                  # LoRa数据/LoRa配置/固件升级/CAN命令
@@ -89,3 +91,14 @@ wails3 task linux:create:rpm
 - 前端 UI 标签通过 `t("key")` 翻译
 - 提交前必须验证构建通过
 - tag 格式: `v*.*.*` (如 v0.1.0)
+
+## LoRa 工作模式协议
+
+NWMODE 决定组网模式，工作模式根据 NWMODE 选择不同的 AT 命令：
+
+| NWMODE | 含义 | 工作 AT | 模式值 |
+|--------|------|---------|--------|
+| 0 | 不组网(透传) | AT+TTMODE | 0=广播透传 / 1=指定节点 |
+| 1 | 组网 | AT+WMODE | 0=广播透传 / 1=指定节点 / 2=主动上报 |
+
+前端根据 `isMesh` 自动切换下拉选项和 AT 命令，SET NWMODE 后自动查询对应工作模式。
