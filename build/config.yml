@@ -10,7 +10,7 @@ info:
   productIdentifier: "com.kabirz.laserrangetool"
   description: "Laser ranging system PC tool — CAN bus debug, firmware upgrade, LoRa gateway"
   copyright: "(c) 2025-2026, Kabirz"
-  comments: "Migrated from can-uart-tool (C/Win32) to Go + Wails v3"
+  comments: "Laser ranging system PC tool — CAN bus debug, firmware upgrade, LoRa gateway"
   version: "0.1.9"
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension

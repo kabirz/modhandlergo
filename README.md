@@ -1,6 +1,6 @@
 # 激光测距工具 (Laser Range Tool)
 
-基于 Go + Wails v3 的激光测距系统 PC 端配套工具，从 [can-uart-tool](https://github.com/kabirz/can-uart-tool) (C/Win32) 完整迁移而来。
+基于 Go + Wails v3 的激光测距系统 PC 端配套工具。
 
 ## 功能
 
@@ -160,20 +160,6 @@ ModHandlerGo/
 - **串口可靠性**：打开操作 3 秒超时 + AT 模式懒加载，无效端口不会阻塞
 - **前端性能**：React.memo 组件优化 + 合并高频 setState + sync.Pool 复用切片 + 稳定列表 key
 - **事件驱动**：后端 `app.Event.Emit` → 前端 `useWailsEvent`，零轮询
-
-## 原版对照
-
-| can-uart-tool (C/Win32) | LaserRangeTool (Go + Wails v3) |
-|--------------------------|-------------------------------|
-| Tab 控件导航 | 左侧边栏导航 |
-| Win32 API | 跨平台 (Windows + Linux) |
-| PCAN / IXXAT | PCAN / SocketCAN |
-| LoRa SDK (C) | LoRa SDK (纯 Go) |
-| 无中英文切换 | 中英文完整国际化 |
-| 固定主题 | 亮色 (ccx) / 暗色 (Dracula) |
-| 无版本更新检查 | 启动自动检测 + 手动检查 |
-| 无 Logo | 自定义矢量 Logo |
-| 需管理员权限安装 | 用户级安装 (无需 UAC) |
 
 ## 许可
 

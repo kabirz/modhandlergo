@@ -132,7 +132,6 @@ const dict: Record<string, Record<Lang, string>> = {
   "about.canAdapter":  { zh: "CAN 适配器",   en: "CAN Adapter" },
   "about.serial":      { zh: "串口",         en: "Serial" },
   "about.protocol":    { zh: "协议",         en: "Protocol" },
-  "about.origProject": { zh: "原版项目",     en: "Original Project" },
   "about.license":     { zh: "许可证",       en: "License" },
   "about.ok":          { zh: "确定",         en: "OK" },
 

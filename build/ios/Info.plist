@@ -7,7 +7,7 @@
 		<key>CFBundleExecutable</key>
 		<string>modhandlergo</string>
 		<key>CFBundleGetInfoString</key>
-		<string>Migrated from can-uart-tool (C/Win32) to Go + Wails v3</string>
+		<string>Laser ranging system PC tool — CAN bus debug, firmware upgrade, LoRa gateway</string>
 		<key>CFBundleIdentifier</key>
 		<string>com.kabirz.laserrangetool</string>
 		<key>CFBundleName</key>

@@ -68,10 +68,6 @@ function AboutDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div className="border-t border-border pt-3 mt-3">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("about.origProject")}</span>
-              <span className="font-mono text-xs">can-uart-tool</span>
-            </div>
-            <div className="flex justify-between mt-1">
               <span className="text-muted-foreground">{t("about.license")}</span>
               <span>Apache-2.0</span>
             </div>

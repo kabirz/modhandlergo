@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-从 C/Win32 [can-uart-tool](https://github.com/kabirz/can-uart-tool) 完整迁移到 Go + Wails v3 的桌面工具。支持 CAN 总线调试、固件升级、LoRa 网关通信。
+Go + Wails v3 的激光测距系统 PC 配套工具。支持 CAN 总线调试、固件升级、LoRa 网关通信。
 
 ## 技术栈
 
