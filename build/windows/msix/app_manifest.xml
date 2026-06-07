@@ -10,7 +10,7 @@
   <Identity 
     Name="com.example.modhandlergo"
     Publisher="CN=Kabirz"
-    Version="0.1.8.0" 
+    Version="0.1.9.0" 
     ProcessorArchitecture="x64" />
   
   <Properties>
