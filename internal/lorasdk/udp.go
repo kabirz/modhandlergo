@@ -85,7 +85,21 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 				if !ok || ipNet.IP.To4() == nil {
 					continue
 				}
-				localIPs = append(localIPs, ipNet.IP.To4())
+				ip := ipNet.IP.To4()
+				// Skip VPN/TUN interfaces by IP range:
+				//   198.18.0.0/16 — Clash TUN
+				//   172.16.0.0/12 — Docker / VPN
+				//   100.64.0.0/10 — CGNAT / Tailscale
+				if ip[0] == 198 && ip[1] == 18 {
+					continue
+				}
+				if ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31 {
+					continue
+				}
+				if ip[0] == 100 && ip[1] >= 64 && ip[1] <= 127 {
+					continue
+				}
+				localIPs = append(localIPs, ip)
 			}
 		}
 	}
@@ -109,6 +123,7 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 		if err != nil {
 			continue
 		}
+
 
 		_, err = conn.WriteToUDP(payload, bcastAddr)
 		if err != nil {
@@ -136,6 +151,22 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 			n, remoteAddr, err := s.conn.ReadFromUDP(buf)
 			if err != nil || n == 0 {
 				continue
+			}
+
+			// Skip responses from TUN/VPN interfaces (Clash 198.18.x.x, etc.)
+			if remoteAddr != nil {
+				rip := remoteAddr.IP.To4()
+				if rip != nil {
+					if rip[0] == 198 && rip[1] == 18 {
+						continue
+					}
+					if rip[0] == 172 && rip[1] >= 16 && rip[1] <= 31 {
+						continue
+					}
+					if rip[0] == 100 && rip[1] >= 64 && rip[1] <= 127 {
+						continue
+					}
+				}
 			}
 
 			content := string(buf[:n])

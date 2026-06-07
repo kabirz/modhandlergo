@@ -68,6 +68,7 @@ export function LoRaConfigPage() {
   const [sockaLPort, setSockaLPort] = useState("1234");
   const [nwmode, setNwmode] = useState(0);
   const [ttmode, setTtmode] = useState(0);
+  const [wmode, setWmode] = useState(0);
   const [upwidText, setUpwidText] = useState("");
   const [pwr, setPwr] = useState(30);
   const [channel, setChannel] = useState("CH1");
@@ -100,6 +101,7 @@ export function LoRaConfigPage() {
 
   useWailsEvent<string>("lora:nwmode", (v) => { const n = parseInt(v); if (!isNaN(n)) setNwmode(n); });
   useWailsEvent<string>("lora:ttmode", (v) => { const n = parseInt(v); if (!isNaN(n)) setTtmode(n); });
+  useWailsEvent<string>("lora:wmode", (v) => { const n = parseInt(v); if (!isNaN(n)) setWmode(n); });
   useWailsEvent<string>("lora:dhcp", (v) => setDhcpText(v));
   useWailsEvent<string>("lora:option", (v) => {
     const opts = ["socket", "serial", "mqtt", "ali_cloud", "usr_cloud"];
@@ -311,7 +313,7 @@ export function LoRaConfigPage() {
             </SettingRow>
             {/* Work Mode */}
             <SettingRow label={`${t("cfg.workMode")}:`} className="w-14">
-              <Sel value={ttmode} onChange={(v) => setTtmode(Number(v))} className="w-20" options={ttmodeOptions} />
+              <Sel value={isMesh ? wmode : ttmode} onChange={(v) => { const n = Number(v); if (isMesh) setWmode(n); else setTtmode(n); }} className="w-20" options={ttmodeOptions} />
               <div className="flex items-center gap-0.5 ml-auto">
                 <Btn onClick={() => sendAT(`AT+${isMesh ? "WMODE" : "TTMODE"}=${ttmode}`)}>{t("cfg.set")}</Btn>
                 <Btn onClick={() => sendAT(`AT+${isMesh ? "WMODE" : "TTMODE"}?`)}>{t("cfg.query")}</Btn>
@@ -324,15 +326,6 @@ export function LoRaConfigPage() {
               <div className="flex items-center gap-0.5 ml-auto">
                 <Btn onClick={() => sendAT(`AT+UPWID=${upwidText}`)}>{t("cfg.set")}</Btn>
                 <Btn onClick={() => sendAT("AT+UPWID?")}>{t("cfg.query")}</Btn>
-              </div>
-            </SettingRow>
-            {/* Power */}
-            <SettingRow label={`${t("cfg.power")}:`} className="w-14">
-              <Sel value={pwr} onChange={(v) => setPwr(Number(v))} className="w-12"
-                options={[24,25,26,27,28,29,30].map(p => ({ value: p, label: String(p) }))} />
-              <div className="flex items-center gap-0.5 ml-auto">
-                <Btn onClick={() => sendAT(`AT+PWR${ch}=${pwr}`)}>{t("cfg.set")}</Btn>
-                <Btn onClick={() => sendAT(`AT+PWR${ch}?`)}>{t("cfg.query")}</Btn>
               </div>
             </SettingRow>
             {/* Channel parameters group */}
@@ -369,6 +362,15 @@ export function LoRaConfigPage() {
                 <div className="flex items-center gap-0.5 ml-auto">
                   <Btn onClick={() => sendAT(`AT+SPD${ch}=${speed}`)}>{t("cfg.set")}</Btn>
                   <Btn onClick={() => sendAT(`AT+SPD${ch}?`)}>{t("cfg.query")}</Btn>
+                </div>
+              </SettingRow>
+              {/* Power */}
+              <SettingRow label={`${t("cfg.power")}:`} className="w-14">
+                <Sel value={pwr} onChange={(v) => setPwr(Number(v))} className="w-12"
+                  options={[24,25,26,27,28,29,30].map(p => ({ value: p, label: String(p) }))} />
+                <div className="flex items-center gap-0.5 ml-auto">
+                  <Btn onClick={() => sendAT(`AT+PWR${ch}=${pwr}`)}>{t("cfg.set")}</Btn>
+                  <Btn onClick={() => sendAT(`AT+PWR${ch}?`)}>{t("cfg.query")}</Btn>
                 </div>
               </SettingRow>
             </div>

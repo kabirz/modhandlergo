@@ -170,13 +170,13 @@ func (b *Bridge) OnATResponse(response string) {
 		return val
 	}
 
-	if v := extract("+NWMODE:"); v != "" {
+	if v := extract("+NWMODE:"); v != "" && v != "OK" {
 		b.emit("lora:nwmode", v)
 	}
-	if v := extract("+TTMODE:"); v != "" {
+	if v := extract("+TTMODE:"); v != "" && v != "OK" {
 		b.emit("lora:ttmode", v)
 	}
-	if v := extract("+WMODE:"); v != "" {
+	if v := extract("+WMODE:"); v != "" && v != "OK" {
 		b.emit("lora:wmode", v)
 	}
 	if v := extract("+DHCP:"); v != "" {
@@ -185,8 +185,8 @@ func (b *Bridge) OnATResponse(response string) {
 	if v := extract("+OPTION:"); v != "" {
 		b.emit("lora:option", v)
 	}
-	if v := extract("UPWID:"); v != "" {
-		b.emit("lora:upwid", "UPWID: "+v)
+	if v := extract("+UPWID:"); v != "" && v != "OK" {
+		b.emit("lora:upwid", v)
 	}
 	if v := extract("+GWIP:"); v != "" {
 		b.emit("lora:netip", v)
