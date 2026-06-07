@@ -9,13 +9,13 @@
   
   <Identity 
     Name="com.example.modhandlergo"
-    Publisher="CN=My Company"
-    Version="0.1.6.0" 
+    Publisher="CN=Kabirz"
+    Version="0.1.7.0" 
     ProcessorArchitecture="x64" />
   
   <Properties>
-    <DisplayName>My Product</DisplayName>
-    <PublisherDisplayName>My Company</PublisherDisplayName>
+    <DisplayName>LaserRangeTool</DisplayName>
+    <PublisherDisplayName>Kabirz</PublisherDisplayName>
     <Description>A ModHandlerGo application</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -31,7 +31,7 @@
   <Applications>
     <Application Id="com.example.modhandlergo" Executable="modhandlergo.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="My Product"
+        DisplayName="LaserRangeTool"
         Description="A ModHandlerGo application"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"

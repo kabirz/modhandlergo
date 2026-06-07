@@ -1,10 +1,10 @@
 {
 	"fixed": {
-		"file_version": "0.1.6"
+		"file_version": "0.1.7"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "0.1.6",
+			"ProductVersion": "0.1.7",
 			"CompanyName": "Kabirz",
 			"FileDescription": "Laser ranging system PC tool — CAN bus debug, firmware upgrade, LoRa gateway",
 			"LegalCopyright": "(c) 2025-2026, Kabirz",

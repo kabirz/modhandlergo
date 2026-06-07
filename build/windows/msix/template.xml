@@ -10,14 +10,14 @@
     <Installer
         Path="modhandlergo.exe"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\Kabirz\LaserRangeTool">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
-        Version="0.1.6.0"
+        PackageName="LaserRangeTool"
+        PackageDisplayName="LaserRangeTool"
+        PublisherName="CN=Kabirz"
+        PublisherDisplayName="Kabirz"
+        Version="0.1.7.0"
         PackageDescription="A ModHandlerGo application">
         <Capabilities>
             <Capability Name="runFullTrust" />
@@ -27,7 +27,7 @@
             <Application
                 Id="com.example.modhandlergo"
                 Description="A ModHandlerGo application"
-                DisplayName="My Product"
+                DisplayName="LaserRangeTool"
                 ExecutableName="modhandlergo.exe"
                 EntryPoint="Windows.FullTrustApplication">
                 
@@ -41,8 +41,8 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
+            <DisplayName>LaserRangeTool</DisplayName>
+            <PublisherDisplayName>Kabirz</PublisherDisplayName>
             <Description>A ModHandlerGo application</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
