@@ -117,8 +117,8 @@ wails3 task linux:create:rpm
 推送 `v*` tag 时自动触发 GitHub Actions 构建并发布 Release：
 
 ```bash
-git tag -a v0.1.9 -m "Release v0.1.9"
-git push origin v0.1.9
+git tag -a v0.2.0 -m "Release v0.2.0"
+git push origin v0.2.0
 ```
 
 构建产物：
