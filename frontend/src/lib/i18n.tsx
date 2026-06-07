@@ -106,8 +106,6 @@ const dict: Record<string, Record<Lang, string>> = {
   "fw.channel":       { zh: "通道选择",     en: "Channel" },
   "fw.can":           { zh: "CAN",          en: "CAN" },
   "fw.uart":          { zh: "UART",         en: "UART" },
-  "fw.detectDev":     { zh: "检测设备",     en: "Detect Devices" },
-  "fw.detectPort":    { zh: "检测串口",     en: "Detect Ports" },
   "fw.selectPort":    { zh: "选择串口",     en: "Select Port" },
   "fw.firmwareFile":  { zh: "固件文件",     en: "Firmware File" },
   "fw.browse":        { zh: "浏览",         en: "Browse" },
