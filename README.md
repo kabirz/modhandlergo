@@ -92,6 +92,17 @@ wails3 build
 wails3 task windows:create:nsis:installer
 ```
 
+**Windows (MSIX):**
+```bash
+# 需要安装 Windows SDK (makeappx + signtool)
+# 1. 生成测试证书（首次）
+pwsh -ExecutionPolicy Bypass -File build/windows/msix/create_test_cert.ps1
+# 2. 安装证书到信任根（需管理员）
+pwsh -ExecutionPolicy Bypass -File build/windows/msix/create_test_cert.ps1 -Install
+# 3. 打包
+wails3 task windows:package -- FORMAT=msix
+```
+
 **Linux:**
 ```bash
 # DEB
@@ -111,7 +122,7 @@ git push origin v0.1.9
 ```
 
 构建产物：
-- Windows: `modhandlergo-amd64-installer.exe`
+- Windows: `modhandlergo-amd64-installer.exe` (NSIS) + `modhandlergo-amd64.msix` (MSIX)
 - Linux: `.deb` + `.rpm` 包
 
 ## 项目结构

@@ -37,17 +37,28 @@ jobs:
           $nsisPath = "C:\Program Files (x86)\NSIS"
           echo "$nsisPath" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
-      - name: Build + Package
+      - name: Build + Package NSIS
         run: |
           $env:PATH = "C:\Program Files (x86)\NSIS;$env:PATH"
           wails3 generate bindings
           wails3 task windows:package -- nsis
 
-      - name: Upload artifact
+      - name: Build + Package MSIX
+        run: |
+          pwsh -ExecutionPolicy Bypass -File build/windows/msix/create_test_cert.ps1
+          wails3 task windows:package -- FORMAT=msix
+
+      - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
           path: bin/*-installer.exe
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msix
+          path: bin/*.msix
 
   build-linux:
     runs-on: ubuntu-24.04
@@ -111,6 +122,7 @@ jobs:
           prerelease: false
           files: |
             artifacts/windows-installer/*.exe
+            artifacts/windows-msix/*.msix
             artifacts/linux-deb/*.deb
             artifacts/linux-rpm/*.rpm
           generate_release_notes: true

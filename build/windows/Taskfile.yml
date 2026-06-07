@@ -135,30 +135,14 @@ tasks:
       INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
 
   create:msix:package:
-    summary: Creates an MSIX package
+    summary: Creates an MSIX package using makeappx
     deps:
       - task: build
     cmds:
-      - |-
-        wails3 tool msix \
-          --config "{{.ROOT_DIR}}/wails.json" \
-          --name "{{.APP_NAME}}" \
-          --executable "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" \
-          --arch "{{.ARCH}}" \
-          --out "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.ARCH}}.msix" \
-          {{if .CERT_PATH}}--cert "{{.CERT_PATH}}"{{end}} \
-          {{if .PUBLISHER}}--publisher "{{.PUBLISHER}}"{{end}} \
-          {{if .USE_MSIX_TOOL}}--use-msix-tool{{else}}--use-makeappx{{end}}
+      - powershell -NoProfile -ExecutionPolicy Bypass -File "{{.ROOT_DIR}}/build/windows/msix/generate_assets.ps1"
+      - powershell -NoProfile -ExecutionPolicy Bypass -File "{{.ROOT_DIR}}/build/windows/msix/create_msix.ps1" -ExePath "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" -OutPath "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.ARCH}}.msix" -Arch "{{.ARCH}}"
     vars:
       ARCH: '{{.ARCH | default ARCH}}'
-      CERT_PATH: '{{.CERT_PATH | default ""}}'
-      PUBLISHER: '{{.PUBLISHER | default ""}}'
-      USE_MSIX_TOOL: '{{.USE_MSIX_TOOL | default "false"}}'
-
-  install:msix:tools:
-    summary: Installs tools required for MSIX packaging
-    cmds:
-      - wails3 tool msix-install-tools
 
   run:
     cmds:

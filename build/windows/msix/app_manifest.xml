@@ -7,32 +7,33 @@
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   IgnorableNamespaces="uap3">
   
-  <Identity 
-    Name="com.example.modhandlergo"
+  <Identity
+    Name="com.kabirz.laserrangetool"
     Publisher="CN=Kabirz"
-    Version="0.1.9.0" 
+    Version="0.1.9.0"
     ProcessorArchitecture="x64" />
-  
+
   <Properties>
     <DisplayName>LaserRangeTool</DisplayName>
     <PublisherDisplayName>Kabirz</PublisherDisplayName>
-    <Description>A ModHandlerGo application</Description>
+    <Description>Laser ranging system PC tool</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
-  
+
   <Dependencies>
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
   </Dependencies>
-  
+
   <Resources>
     <Resource Language="en-us" />
+    <Resource Language="zh-cn" />
   </Resources>
-  
+
   <Applications>
-    <Application Id="com.example.modhandlergo" Executable="modhandlergo.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="com.kabirz.laserrangetool" Executable="modhandlergo.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="LaserRangeTool"
-        Description="A ModHandlerGo application"
+        Description="Laser ranging system PC tool"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">

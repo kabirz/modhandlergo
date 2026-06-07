@@ -18,15 +18,15 @@
         PublisherName="CN=Kabirz"
         PublisherDisplayName="Kabirz"
         Version="0.1.9.0"
-        PackageDescription="A ModHandlerGo application">
+        PackageDescription="Laser ranging system PC tool">
         <Capabilities>
             <Capability Name="runFullTrust" />
-            
+
         </Capabilities>
         <Applications>
             <Application
-                Id="com.example.modhandlergo"
-                Description="A ModHandlerGo application"
+                Id="com.kabirz.laserrangetool"
+                Description="Laser ranging system PC tool"
                 DisplayName="LaserRangeTool"
                 ExecutableName="modhandlergo.exe"
                 EntryPoint="Windows.FullTrustApplication">
@@ -43,7 +43,7 @@
             <Framework>false</Framework>
             <DisplayName>LaserRangeTool</DisplayName>
             <PublisherDisplayName>Kabirz</PublisherDisplayName>
-            <Description>A ModHandlerGo application</Description>
+            <Description>Laser ranging system PC tool</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
