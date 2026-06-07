@@ -172,6 +172,7 @@ export function LoRaConfigPage() {
               <>
                 <Sel value={selectedPort} onChange={setSelectedPort} className="w-24 shrink-0"
                   options={serialPorts.map((p) => ({ value: p.portName, label: p.friendlyName || p.portName }))} />
+                <span className="text-[10px] text-muted-foreground shrink-0">{t("cfg.baud")}:</span>
                 <Sel value={baudRate} onChange={setBaudRate} className="w-16 shrink-0"
                   options={["9600","19200","38400","57600","115200","230400","460800","921600"].map(b => ({ value: b, label: b }))} />
                 <Btn onClick={async () => {

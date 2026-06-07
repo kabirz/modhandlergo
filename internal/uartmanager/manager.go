@@ -199,7 +199,7 @@ func (m *Manager) EnumPorts() ([]SerialPortInfo, error) {
 		return extractPortNum(result[i].FriendlyName) < extractPortNum(result[j].FriendlyName)
 	})
 
-	m.log(fmt.Sprintf("Found %d available serial ports", len(result)))
+	m.log(fmt.Sprintf("Found %d available serial port(s)", len(result)))
 	return result, nil
 }
 

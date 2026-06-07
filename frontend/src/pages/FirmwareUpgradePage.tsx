@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Upload, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { msTimestamp } from "@/lib/utils";
 import { CANUpgradeService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 
 const baudRates = ["10K", "20K", "50K", "100K", "125K", "250K", "500K", "1M"];
@@ -38,6 +39,8 @@ export function FirmwareUpgradePage() {
   const [version, setVersion] = useState("");
   const [logs, setLogs] = useState<{ id: number; text: string }[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef(channel);
+  channelRef.current = channel;
 
   const addLog = useCallback((msg: string) => {
     setLogs((prev) => [...prev.slice(-200), { id: logIdCounter++, text: msg }]);
@@ -48,31 +51,23 @@ export function FirmwareUpgradePage() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [logs]);
 
-  useWailsEvent<string>("can:log", (msg) => addLog(msg));
+  useWailsEvent<string>("can:log", (msg) => { if (channelRef.current === "can") addLog(msg); });
   useWailsEvent<number>("can:progress", (pct) => setProgress(pct));
-  useWailsEvent<string>("uart:log", (msg) => addLog(msg));
+  useWailsEvent<string>("uart:log", (msg) => { if (channelRef.current === "uart") addLog(msg); });
   useWailsEvent<number>("uart:progress", (pct) => setProgress(pct));
 
-  // Auto-detect CAN devices on mount
-  useEffect(() => {
+  const detectCanDevices = () => {
     CANUpgradeService.DetectCANDevices().then((devices) => {
       setCanDevices(devices);
       if (devices.length > 0) setSelectedDevice(devices[0].toString());
+      addLog(`[${msTimestamp()}] Found ${devices.length} available CAN device(s)`);
     }).catch(() => {});
-  }, []);
-
-  const handleDetectPorts = async () => {
-    try {
-      const ports = await CANUpgradeService.DetectSerialPorts();
-      setSerialPorts(ports);
-      if (ports.length > 0) {
-        setSelectedPort(ports[0].portName);
-      }
-      addLog(`Detected ${ports.length} serial port(s)`);
-    } catch (err: any) {
-      addLog(`Error: ${err.message || err}`);
-    }
   };
+
+  // Auto-detect CAN devices on mount
+  useEffect(() => {
+    detectCanDevices();
+  }, []);
 
   const handleConnect = async () => {
     try {
@@ -83,7 +78,7 @@ export function FirmwareUpgradePage() {
           await CANUpgradeService.DisconnectUART();
         }
         setConnected(false);
-        addLog("Disconnected");
+        addLog(`[${msTimestamp()}] Disconnected`);
       } else {
         if (channel === "can") {
           await CANUpgradeService.ConnectCAN(parseInt(selectedDevice) || 0, baudIndex);
@@ -91,28 +86,28 @@ export function FirmwareUpgradePage() {
           await CANUpgradeService.ConnectUART(selectedPort, parseInt(serialBaud));
         }
         setConnected(true);
-        addLog("Connected successfully");
+        addLog(`[${msTimestamp()}] Connected successfully`);
       }
     } catch (err: any) {
-      addLog(`Error: ${err.message || err}`);
+      addLog(`[${msTimestamp()}] Error: ${err.message || err}`);
     }
   };
 
   const handleUpgrade = async () => {
     if (!firmwarePath) {
-      addLog(t("fw.pleaseSelect"));
+      addLog(`[${msTimestamp()}] ${t("fw.pleaseSelect")}`);
       return;
     }
     try {
       setProgress(0);
-      addLog(`Starting firmware upgrade: ${firmwarePath}`);
+      addLog(`[${msTimestamp()}] Starting firmware upgrade: ${firmwarePath}`);
       if (channel === "can") {
         await CANUpgradeService.CANFirmwareUpgrade(firmwarePath, false);
       } else {
         await CANUpgradeService.UARTFirmwareUpgrade(firmwarePath, false);
       }
     } catch (err: any) {
-      addLog(`Error: ${err.message || err}`);
+      addLog(`[${msTimestamp()}] Error: ${err.message || err}`);
     }
   };
 
@@ -125,9 +120,9 @@ export function FirmwareUpgradePage() {
         ver = await CANUpgradeService.UARTGetFirmwareVersion();
       }
       setVersion(ver);
-      addLog(`Firmware version: ${ver}`);
+      addLog(`[${msTimestamp()}] Firmware version: ${ver}`);
     } catch (err: any) {
-      addLog(`Error: ${err.message || err}`);
+      addLog(`[${msTimestamp()}] Error: ${err.message || err}`);
     }
   };
 
@@ -138,9 +133,9 @@ export function FirmwareUpgradePage() {
       } else {
         await CANUpgradeService.UARTBoardReboot();
       }
-      addLog("Reboot command sent");
+      addLog(`[${msTimestamp()}] Reboot command sent`);
     } catch (err: any) {
-      addLog(`Error: ${err.message || err}`);
+      addLog(`[${msTimestamp()}] Error: ${err.message || err}`);
     }
   };
 
@@ -161,11 +156,7 @@ export function FirmwareUpgradePage() {
               <button
                 onClick={() => {
                   setChannel("can");
-                  // Auto-detect CAN devices when switching to CAN
-                  CANUpgradeService.DetectCANDevices().then((devices) => {
-                    setCanDevices(devices);
-                    if (devices.length > 0) setSelectedDevice(devices[0].toString());
-                  }).catch(() => {});
+                  detectCanDevices();
                 }}
                 className={`relative z-10 flex-1 text-xs font-medium text-center rounded transition-colors cursor-pointer ${channel === "can" ? "text-primary-foreground" : "text-muted-foreground"}`}
               >CAN</button>
@@ -185,11 +176,11 @@ export function FirmwareUpgradePage() {
             {channel === "can" ? (
               <>
                 <Select value={selectedDevice} onChange={(e) => setSelectedDevice(e.target.value)} className="w-44">
-                  <option value="">{t("fw.selectDev")}</option>
                   {canDevices.map((d) => (
                     <option key={d} value={d.toString()}>Channel 0x{d.toString(16)}</option>
                   ))}
                 </Select>
+                <span className="text-sm text-muted-foreground shrink-0">{t("fw.baud")}:</span>
                 <Select value={baudIndex.toString()} onChange={(e) => setBaudIndex(Number(e.target.value))} className="w-24">
                   {baudRates.map((br, i) => (
                     <option key={i} value={i.toString()}>{br}</option>
@@ -203,6 +194,7 @@ export function FirmwareUpgradePage() {
                     <option key={p.portName} value={p.portName}>{p.friendlyName || p.portName}</option>
                   ))}
                 </Select>
+                <span className="text-sm text-muted-foreground shrink-0">{t("fw.baud")}:</span>
                 <Select value={serialBaud} onChange={(e) => setSerialBaud(e.target.value)} className="w-24">
                   {serialBaudRates.map((br) => (
                     <option key={br} value={br}>{br}</option>
@@ -231,7 +223,7 @@ export function FirmwareUpgradePage() {
                 const path = await CANUpgradeService.OpenFirmwareFile();
                 if (path) setFirmwarePath(path);
               } catch (err: any) {
-                addLog(`Error: ${err.message || err}`);
+                addLog(`[${msTimestamp()}] Error: ${err.message || err}`);
               }
             }}>{t("fw.browse")}</Button>
           </div>

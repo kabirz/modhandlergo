@@ -106,7 +106,7 @@ const dict: Record<string, Record<Lang, string>> = {
   "fw.channel":       { zh: "通道选择",     en: "Channel" },
   "fw.can":           { zh: "CAN",          en: "CAN" },
   "fw.uart":          { zh: "UART",         en: "UART" },
-  "fw.selectPort":    { zh: "选择串口",     en: "Select Port" },
+  "fw.baud":          { zh: "波特率",       en: "Baud Rate" },
   "fw.firmwareFile":  { zh: "固件文件",     en: "Firmware File" },
   "fw.browse":        { zh: "浏览",         en: "Browse" },
   "fw.upgrade":       { zh: "升级控制",     en: "Upgrade" },
@@ -116,7 +116,6 @@ const dict: Record<string, Record<Lang, string>> = {
   "fw.curVersion":    { zh: "当前版本",     en: "Current Version" },
   "fw.log":           { zh: "日志",         en: "Log" },
   "fw.waitOp":        { zh: "等待操作...",   en: "Waiting..." },
-  "fw.selectDev":     { zh: "选择设备",     en: "Select Device" },
   "fw.selectFile":    { zh: "选择固件文件 (.bin)", en: "Select firmware file (.bin)" },
   "fw.pleaseSelect":  { zh: "请先选择固件文件", en: "Please select a firmware file first" },
 
