@@ -135,6 +135,9 @@ export function LoRaConfigPage() {
     catch (err: any) { addLog(`Error: ${err.message || err}`); }
   };
 
+  // 串口模式必须先打开串口，UDP 模式始终可用
+  const ready = transport === "udp" || serialOpen;
+
   const isMesh = nwmode === 1;
   // 不组网模式: TTMODE 0=广播透传 / 1=指定节点
   // 组网模式:   WMODE  0=广播透传 / 1=指定节点 / 2=主动上报
@@ -199,13 +202,14 @@ export function LoRaConfigPage() {
                 }} variant={serialOpen ? "destructive" : "default"}>
                   {serialOpen ? <><Unplug className="h-2.5 w-2.5 mr-0.5" />{t("cfg.close")}</> : <><Cable className="h-2.5 w-2.5 mr-0.5" />{t("cfg.open")}</>}
                 </Btn>
+                {!serialOpen && <span className="text-[10px] text-orange-500 shrink-0 ml-auto">{t("cfg.openSerial")}</span>}
               </>
             )}
           </div>
         </div>
 
         {/* Device Discovery */}
-        <div className="p-2 rounded-lg bg-card border border-border/50">
+        <div className={`p-2 rounded-lg bg-card border border-border/50 transition-opacity duration-200 ${!ready ? "opacity-40 pointer-events-none" : ""}`}>
           <SectionHead icon={<Search className="h-3.5 w-3.5" />} title={t("cfg.discovery")} />
           {/* Buttons evenly distributed */}
           <div className="grid grid-cols-4 gap-1.5 mb-2">
@@ -229,7 +233,7 @@ export function LoRaConfigPage() {
         </div>
       </div>
 
-      {/* Row 2: Network + LoRa Protocol */}
+      <div className={!ready ? "pointer-events-none opacity-40 select-none transition-opacity duration-200" : "transition-opacity duration-200"}>
       <div className="grid grid-cols-2 gap-2">
         {/* Network */}
         <div className="p-2 rounded-lg bg-card border border-border/50">
@@ -406,6 +410,7 @@ export function LoRaConfigPage() {
         <div className="overflow-y-auto bg-terminal-bg rounded-md p-2.5 font-mono text-[11px] text-terminal-fg leading-relaxed terminal-selectable terminal-sm">
           {logs.length === 0 ? <span className="text-muted-foreground/50">{t("cfg.waitResp")}</span> : logs.map((l) => <div key={l.id}>{l.text}</div>)}
         </div>
+      </div>
       </div>
     </div>
   );

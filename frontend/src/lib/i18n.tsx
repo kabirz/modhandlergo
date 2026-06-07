@@ -89,6 +89,7 @@ const dict: Record<string, Record<Lang, string>> = {
   "cfg.queryVer":     { zh: "查询版本",     en: "Query Version" },
   "cfg.responseLog":  { zh: "响应日志",     en: "Response Log" },
   "cfg.waitResp":     { zh: "等待响应...",   en: "Waiting for response..." },
+  "cfg.openSerial":   { zh: "请先打开串口再进行其他操作",   en: "Open serial port first to continue" },
 
   // Firmware
   "fw.channel":       { zh: "通道选择",     en: "Channel" },
