@@ -29,13 +29,11 @@ declare module "@wailsio/runtime" {
             "lora:nwmode": string;
             "lora:option": string;
             "lora:pwr": string;
-            "lora:scanner": { [_ in string]?: any };
             "lora:socka": string;
             "lora:socken": string;
             "lora:spd": string;
             "lora:ttmode": string;
             "lora:upwid": string;
-            "lora:wmode": string;
             "uart:log": string;
             "uart:progress": number;
         }

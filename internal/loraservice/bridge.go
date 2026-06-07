@@ -3,6 +3,7 @@ package loraservice
 import (
 	"fmt"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,8 +13,9 @@ import (
 
 // Bridge wraps LoRa SDK callbacks and emits parsed Wails events.
 type Bridge struct {
-	app *application.App
-	sdk *lorasdk.SDK
+	app            *application.App
+	sdk            *lorasdk.SDK
+	pendingRSSiNID uint32
 }
 
 // NewBridge creates a new LoRa callback bridge.
@@ -58,35 +60,83 @@ func (b *Bridge) OnFrame(nid uint32, payload []byte) {
 
 	switch frameType {
 	case lorasdk.DataHandler:
+		// Parse joystick telemetry (8 bytes: X(2B BE) + Y(2B BE) + btn(1B) + 0xFF*3)
+		if len(payload) >= 9 {
+			body := payload[1:9]
+			if body[5] == 0xFF && body[6] == 0xFF && body[7] == 0xFF {
+				xSigned := int16(uint16(body[0])<<8 | uint16(body[1]))
+				ySigned := int16(uint16(body[2])<<8 | uint16(body[3]))
+				btn := body[4] & 0x01
+				btnStr := "Pressed"
+				if btn != 0 {
+					btnStr = "Released"
+				}
+				b.emit("lora:log", map[string]interface{}{
+					"msg": fmt.Sprintf("[%s] RX Telemetry NID=0x%08X: X=%.1f° Y=%.1f° Btn=%s",
+						time.Now().Format("15:04:05.000"), nid,
+						float32(xSigned)/10.0, float32(ySigned)/10.0, btnStr),
+					"src": 0,
+				})
+			}
+		}
 		// Parse merged scanner frame (20 bytes)
 		if sd, ok := lorasdk.ParseScannerData(payload); ok {
 			b.emit("lora:scanner", map[string]interface{}{
 				"nid":            nid,
-				"overbreakValid": sd.OverbreakValid,
-				"laserValid":     sd.LaserValid,
-				"coordZValid":    sd.CoordZValid,
-				"coordXYValid":   sd.CoordXYValid,
-				"overbreak":      sd.Overbreak,
-				"laser":          sd.Laser,
-				"coordX":         sd.CoordX,
-				"coordY":         sd.CoordY,
-				"coordZ":         sd.CoordZ,
+					"overbreakValid": sd.OverbreakValid,
+					"laserValid":     sd.LaserValid,
+					"coordZValid":    sd.CoordZValid,
+					"coordXYValid":   sd.CoordXYValid,
+					"overbreak":      sd.Overbreak,
+					"laser":          sd.Laser,
+					"coordX":         sd.CoordX,
+					"coordY":         sd.CoordY,
+					"coordZ":         sd.CoordZ,
 			})
 		}
 		// Echo: send scanner merged frame back (matches C code behavior)
 		b.sendScannerEcho(nid)
 
 	case lorasdk.DataTest:
+		// Parse TEST body: [index 2B BE][timestamp 4B BE]
+		testDesc := ""
+		if len(payload) > 1 {
+			body := payload[1:]
+			if len(body) >= 6 {
+				idx := uint16(body[0])<<8 | uint16(body[1])
+				ts := uint32(body[2])<<24 | uint32(body[3])<<16 | uint32(body[4])<<8 | uint32(body[5])
+				testDesc = fmt.Sprintf("idx=%d ts=%d ms -> echo", idx, ts)
+			} else if len(body) >= 2 {
+				idx := uint16(body[0])<<8 | uint16(body[1])
+				testDesc = fmt.Sprintf("idx=%d -> echo", idx)
+			} else {
+				testDesc = "TEST (short)"
+			}
+		}
+		b.emit("lora:log", map[string]interface{}{
+			"msg": fmt.Sprintf("[%s] RX Test NID=0x%08X: %s",
+				time.Now().Format("15:04:05.000"), nid, testDesc),
+			"src": 0,
+		})
 		b.emit("lora:test", map[string]interface{}{
 			"nid":     nid,
 			"payload": payload,
 		})
+		// Echo: send the same payload back to the NID
+		b.sendTestEcho(nid, payload)
 
 	case lorasdk.DataRSSI:
+		b.emit("lora:log", map[string]interface{}{
+			"msg": fmt.Sprintf("[%s] RX RSSI Request NID=0x%08X",
+				time.Now().Format("15:04:05.000"), nid),
+			"src": 0,
+		})
 		b.emit("lora:rssi", map[string]interface{}{
 			"nid":     nid,
 			"payload": payload,
 		})
+		// Query gateway RSSI and send response back to this NID
+		b.queryAndSendRSSI(nid)
 	}
 }
 
@@ -183,6 +233,11 @@ func (b *Bridge) OnATResponse(response string) {
 		val := strings.TrimSpace(s[idx+8:])
 		b.emit("lora:socken", val)
 	}
+
+	// +NINFO: parse SNR/RSSI and send RSSI response back to pending NID
+	if idx := strings.Index(s, "+NINFO:"); idx >= 0 {
+		b.handleNINFO(s[idx+7:])
+	}
 }
 
 // OnNetParams implements lorasdk.Callbacks.
@@ -236,6 +291,61 @@ func (b *Bridge) sendScannerEcho(nid uint32) {
 		lorasdk.PackScannerData(sd, buf)
 		b.sdk.SendFrame(nid, buf)
 	}()
+}
+
+// sendTestEcho sends the test payload back to the NID (echo).
+func (b *Bridge) sendTestEcho(nid uint32, payload []byte) {
+	if b.sdk == nil {
+		return
+	}
+	go func() {
+		b.sdk.SendFrame(nid, payload)
+	}()
+}
+
+// queryAndSendRSSI queries gateway RSSI via UDP and sends the response back to the NID via TCP.
+func (b *Bridge) queryAndSendRSSI(nid uint32) {
+	if b.sdk == nil {
+		return
+	}
+	b.pendingRSSiNID = nid
+	go func() {
+		b.sdk.QueryRSSI("", nid)
+	}()
+}
+
+// handleNINFO parses +NINFO response fields and sends RSSI response back to pending NID.
+// Format: field1,field2,field3,snr,rssi (comma-separated, snr=field4, rssi=field5)
+func (b *Bridge) handleNINFO(info string) {
+	info = strings.TrimSpace(info)
+	if info == "" {
+		return
+	}
+
+	nid := b.pendingRSSiNID
+	if nid == 0 || b.sdk == nil {
+		return
+	}
+
+	snrVal := 0
+	rssiVal := -120
+	fields := strings.Split(info, ",")
+	if len(fields) >= 5 {
+		if v, err := strconv.Atoi(strings.TrimSpace(fields[3])); err == nil {
+			snrVal = v
+		}
+		if v, err := strconv.Atoi(strings.TrimSpace(fields[4])); err == nil {
+			rssiVal = v
+		}
+	}
+
+	snrRaw := byte(int8(snrVal))
+	rssiRaw := byte(int8(rssiVal))
+	testFlag := byte(b.sdk.GetTestFlag())
+
+	b.sdk.SendRSSIResponse(nid, snrRaw, rssiRaw, testFlag)
+	b.pendingRSSiNID = 0
+	b.emit("lora:log", map[string]interface{}{"msg": fmt.Sprintf("[%s] RSSI response sent: SNR=%d, RSSI=%d", time.Now().Format("15:04:05.000"), snrVal, rssiVal), "src": 0})
 }
 
 // Ensure Bridge satisfies lorasdk.Callbacks interface.

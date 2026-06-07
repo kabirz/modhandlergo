@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
-import { Settings, Trash2, Search, RefreshCw, Cable, Unplug, Zap, Globe, Radio } from "lucide-react";
+import { Settings, Trash2, Search, Cable, Unplug, Zap, Globe, Radio } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { LoRaConfigService, CANUpgradeService } from "../../bindings/github.com/kabirz/modhandlergo/service";
 

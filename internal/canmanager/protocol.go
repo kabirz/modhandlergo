@@ -17,24 +17,6 @@ const (
 	LoraConfigResp = 0x106 // Controller → Platform (LoRa param config response)
 )
 
-// Board command codes (sent in frame data byte 0-3 as uint32 LE)
-const (
-	CmdStartUpdate = 0
-	CmdConfirm     = 1
-	CmdVersion     = 2
-	CmdReboot      = 3
-)
-
-// Firmware response codes (received in frame data byte 0-3 as uint32 LE)
-const (
-	FWCodeOffset      = 0
-	FWCodeSuccess     = 1
-	FWCodeVersion     = 2
-	FWCodeConfirm     = 3
-	FWCodeFlashError  = 4
-	FWCodeTransferErr = 5
-)
-
 // VirtualChannel is a special channel value for test mode without hardware.
 const VirtualChannel = 0xFFFF
 

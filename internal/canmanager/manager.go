@@ -169,12 +169,6 @@ func (m *Manager) Disconnect() {
 	m.virtualMode = false
 }
 
-// GetChannel returns the current channel or InvalidChannel.
-func (m *Manager) GetChannel() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.channel
-}
 
 // GetFirmwareVersion queries the board firmware version via CAN.
 func (m *Manager) GetFirmwareVersion() (uint32, error) {
@@ -244,24 +238,6 @@ func (m *Manager) DetectDevices() ([]int, error) {
 		return nil, fmt.Errorf("CAN HAL not initialized")
 	}
 	return m.backend.DetectDevices()
-}
-
-// ReplaceBackend swaps the CAN backend and dispatcher (for adapter hot-switching).
-func (m *Manager) ReplaceBackend(backend canhal.Backend, dispatcher *candispatcher.Dispatcher) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.backend = backend
-	m.dispatcher = dispatcher
-}
-
-// GetBackend returns the current CAN backend.
-func (m *Manager) GetBackend() canhal.Backend {
-	return m.backend
-}
-
-// GetDispatcher returns the current dispatcher.
-func (m *Manager) GetDispatcher() *candispatcher.Dispatcher {
-	return m.dispatcher
 }
 
 func (m *Manager) virtualFirmwareUpgrade(filePath string) error {

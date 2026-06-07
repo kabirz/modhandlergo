@@ -61,19 +61,6 @@ func (s *CANCommandService) SendFrame(canID uint32, data []byte, dlc int, isExte
 	return s.cmd.SendFrame(canID, data, dlc, isExtended, isRemote)
 }
 
-// SendQuickCommand sends a quick command by index.
-func (s *CANCommandService) SendQuickCommand(index int) error {
-	if s.cmd == nil {
-		return fmt.Errorf("CAN command module not initialized")
-	}
-	cmds := s.cmd.GetQuickCommands()
-	if index < 0 || index >= len(cmds) {
-		return fmt.Errorf("invalid quick command index: %d", index)
-	}
-	qc := cmds[index]
-	return s.cmd.SendFrame(qc.CanID, qc.Data[:], int(qc.DLC), qc.IsExtended, qc.IsRemote)
-}
-
 // StartMonitor starts the CAN bus monitor.
 func (s *CANCommandService) StartMonitor() error {
 	if s.cmd == nil {
@@ -88,27 +75,6 @@ func (s *CANCommandService) StopMonitor() {
 	if s.cmd != nil {
 		s.cmd.StopMonitor()
 	}
-}
-
-// IsMonitoring returns whether the bus monitor is active.
-func (s *CANCommandService) IsMonitoring() bool {
-	if s.cmd == nil {
-		return false
-	}
-	return s.cmd.IsMonitoring()
-}
-
-// GetQuickCommands returns the list of quick commands.
-func (s *CANCommandService) GetQuickCommands() []cancommand.QuickCommand {
-	if s.cmd == nil {
-		return nil
-	}
-	return s.cmd.GetQuickCommands()
-}
-
-// GetFrameLabel returns a human-readable label for a CAN frame ID.
-func (s *CANCommandService) GetFrameLabel(id uint32) string {
-	return cancommand.FrameIDLabel(id)
 }
 
 // --- LoRa config via CAN (0x105/0x106) ---
@@ -135,16 +101,4 @@ func parseHexBytes(hex string) []byte {
 		}
 	}
 	return result
-}
-
-
-
-// LoraQueryAll sends all query commands in sequence.
-func (s *CANCommandService) LoraQueryAll() error {
-	for _, cmd := range []int{0x02, 0x04, 0x06, 0x07, 0x09, 0x0B} {
-		if err := s.SendLoraCommand(cmd, ""); err != nil {
-			return err
-		}
-	}
-	return nil
 }

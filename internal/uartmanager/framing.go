@@ -13,23 +13,6 @@ const (
 	FrameTypeData = 0x02
 )
 
-// Board command codes (same as CAN)
-const (
-	CmdStartUpdate = 0
-	CmdConfirm     = 1
-	CmdVersion     = 2
-	CmdReboot      = 3
-)
-
-// Firmware response codes (same as CAN)
-const (
-	FWCodeOffset      = 0
-	FWCodeSuccess     = 1
-	FWCodeVersion     = 2
-	FWCodeConfirm     = 3
-	FWCodeFlashError  = 4
-	FWCodeTransferErr = 5
-)
 
 // MaxDataLen is the maximum data payload in a UART frame.
 const MaxDataLen = 8

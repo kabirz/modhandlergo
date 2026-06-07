@@ -82,25 +82,11 @@ export function DisconnectUART(): $CancellablePromise<void> {
 }
 
 /**
- * GetChannel returns the current upgrade channel.
- */
-export function GetChannel(): $CancellablePromise<string> {
-    return $Call.ByID(3567744030);
-}
-
-/**
  * OpenFirmwareFile opens a native file dialog to select a firmware file.
  * Returns the selected file path, or empty string if cancelled.
  */
 export function OpenFirmwareFile(): $CancellablePromise<string> {
     return $Call.ByID(548248430);
-}
-
-/**
- * SetChannel selects the upgrade channel ("can" or "uart").
- */
-export function SetChannel(ch: string): $CancellablePromise<void> {
-    return $Call.ByID(4000872866, ch);
 }
 
 /**

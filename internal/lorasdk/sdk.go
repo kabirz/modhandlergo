@@ -66,9 +66,9 @@ func (s *SDK) SendFrame(nid uint32, data []byte) error {
 	return s.tcp.SendFrame(nid, data)
 }
 
-// SendRSSIResponse sends an RSSI response frame.
+// SendRSSIResponse sends an RSSI response frame via TCP.
 func (s *SDK) SendRSSIResponse(nid uint32, snrRaw, rssiRaw, testFlag byte) error {
-	return s.tcp.SendRSSIResponse(nid, snrRaw, rssiRaw, byte(s.testFlag.Load()))
+	return s.tcp.SendRSSIResponse(nid, snrRaw, rssiRaw, testFlag)
 }
 
 // --- UDP Operations ---
@@ -144,6 +144,11 @@ func (s *SDK) GetATTransport() ATTransport {
 // SetTestFlag sets the test flag for RSSI responses.
 func (s *SDK) SetTestFlag(flag int) {
 	s.testFlag.Store(int32(flag))
+}
+
+// GetTestFlag returns the current test flag.
+func (s *SDK) GetTestFlag() int {
+	return int(s.testFlag.Load())
 }
 
 // IsTCPConnected returns whether TCP is connected.

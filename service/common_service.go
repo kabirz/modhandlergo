@@ -12,13 +12,6 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// AdapterInfo describes a CAN adapter type for the frontend.
-type AdapterInfo struct {
-	Type  int    `json:"type"`
-	Name  string `json:"name"`
-	Available bool `json:"available"`
-}
-
 // CommonService holds shared CAN infrastructure and adapter selection state.
 // It is the first service registered and provides shared instances to other services.
 type CommonService struct {
@@ -53,13 +46,6 @@ func (s *CommonService) ServiceShutdown() error {
 	return nil
 }
 
-// GetAdapterType returns the current adapter type.
-func (s *CommonService) GetAdapterType() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return int(s.adapterType)
-}
-
 // SetAdapterType switches the CAN adapter. Must be called when disconnected.
 func (s *CommonService) SetAdapterType(adapterType int) error {
 	s.mu.Lock()
@@ -86,34 +72,6 @@ func (s *CommonService) SetAdapterType(adapterType int) error {
 	return nil
 }
 
-// GetBackend returns the current CAN backend.
-func (s *CommonService) GetBackend() canhal.Backend {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.backend
-}
-
-// GetDispatcher returns the current dispatcher.
-func (s *CommonService) GetDispatcher() *candispatcher.Dispatcher {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.dispatcher
-}
-
-// GetAvailableAdapters returns adapters available on this platform.
-func (s *CommonService) GetAvailableAdapters() []AdapterInfo {
-	adapters := canhal.AvailableAdapters()
-	result := make([]AdapterInfo, len(adapters))
-	for i, a := range adapters {
-		result[i] = AdapterInfo{
-			Type:      int(a),
-			Name:      adapterName(a),
-			Available: true,
-		}
-	}
-	return result
-}
-
 // CreateManager creates a new CAN Manager using the shared backend.
 func (s *CommonService) CreateManager() *canmanager.Manager {
 	s.mu.Lock()
@@ -132,25 +90,4 @@ func (s *CommonService) CreateCommand() *cancommand.Command {
 		return nil
 	}
 	return cancommand.New(s.backend, s.dispatcher)
-}
-
-func adapterName(a canhal.Adapter) string {
-	switch a {
-	case canhal.AdapterPCAN:
-		return "PCAN"
-	case canhal.AdapterSocketCAN:
-		return "SocketCAN"
-	default:
-		return "Unknown"
-	}
-}
-
-// Startup initializes the default adapter.
-// Deprecated: initialization now happens in constructor.
-func (s *CommonService) Startup() error {
-	adapters := canhal.AvailableAdapters()
-	if len(adapters) > 0 {
-		return s.SetAdapterType(int(adapters[0]))
-	}
-	return nil
 }

@@ -161,24 +161,6 @@ func (c *Command) GetQuickCommands() []QuickCommand {
 	return c.quickCommands
 }
 
-// SetQuickCommands replaces the quick commands list.
-func (c *Command) SetQuickCommands(cmds []QuickCommand) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.quickCommands = cmds
-}
-
-// ReplaceBackend swaps the CAN backend and dispatcher.
-func (c *Command) ReplaceBackend(backend canhal.Backend, dispatcher *candispatcher.Dispatcher) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.monitoring.Load() {
-		c.StopMonitor()
-	}
-	c.backend = backend
-	c.dispatcher = dispatcher
-}
-
 // frameIDLabels maps known CAN frame IDs to human-readable labels.
 var frameIDLabels = map[uint32]string{
 	canmanager.PlatformRx:     "Control Command",

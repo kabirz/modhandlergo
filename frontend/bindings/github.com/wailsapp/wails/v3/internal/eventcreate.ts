@@ -13,7 +13,6 @@ function configure() {
         "lora:frame": $$createType0,
         "lora:log": $$createType0,
         "lora:netparams": $$createType1,
-        "lora:scanner": $$createType0,
     }));
 }
 

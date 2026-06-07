@@ -34,27 +34,12 @@ func (s *LoRaDataService) Disconnect() {
 	s.sdk.Disconnect()
 }
 
-// ConnState returns the current connection state.
-func (s *LoRaDataService) ConnState() string {
-	return s.sdk.ConnState().String()
-}
-
-// IsConnected returns whether TCP is connected.
-func (s *LoRaDataService) IsConnected() bool {
-	return s.sdk.IsTCPConnected()
-}
-
 // SendFrame sends a data frame to a LoRa node.
 func (s *LoRaDataService) SendFrame(nid uint32, data []byte) error {
 	return s.sdk.SendFrame(nid, data)
 }
 
-// QueryRSSI queries RSSI from the gateway.
-func (s *LoRaDataService) QueryRSSI(gatewayIP string, nid uint32) {
-	s.sdk.QueryRSSI(gatewayIP, nid)
-}
-
-// SetTestFlag sets the test mode flag.
+// SetTestFlag sets the test mode flag for RSSI responses.
 func (s *LoRaDataService) SetTestFlag(flag int) {
 	s.sdk.SetTestFlag(flag)
 }

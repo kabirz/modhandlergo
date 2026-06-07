@@ -16,17 +16,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as cancommand$0 from "../internal/cancommand/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as candispatcher$0 from "../internal/candispatcher/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as canhal$0 from "../internal/canhal/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as canmanager$0 from "../internal/canmanager/models.js";
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as $models from "./models.js";
 
 /**
  * CreateCommand creates a new CAN Command using the shared backend.
@@ -47,50 +37,10 @@ export function CreateManager(): $CancellablePromise<canmanager$0.Manager | null
 }
 
 /**
- * GetAdapterType returns the current adapter type.
- */
-export function GetAdapterType(): $CancellablePromise<number> {
-    return $Call.ByID(78184309);
-}
-
-/**
- * GetAvailableAdapters returns adapters available on this platform.
- */
-export function GetAvailableAdapters(): $CancellablePromise<$models.AdapterInfo[]> {
-    return $Call.ByID(1608280581).then(($result: any) => {
-        return $$createType5($result);
-    });
-}
-
-/**
- * GetBackend returns the current CAN backend.
- */
-export function GetBackend(): $CancellablePromise<canhal$0.Backend> {
-    return $Call.ByID(702714450);
-}
-
-/**
- * GetDispatcher returns the current dispatcher.
- */
-export function GetDispatcher(): $CancellablePromise<candispatcher$0.Dispatcher | null> {
-    return $Call.ByID(3267692271).then(($result: any) => {
-        return $$createType7($result);
-    });
-}
-
-/**
  * SetAdapterType switches the CAN adapter. Must be called when disconnected.
  */
 export function SetAdapterType(adapterType: number): $CancellablePromise<void> {
     return $Call.ByID(2042091289, adapterType);
-}
-
-/**
- * Startup initializes the default adapter.
- * Deprecated: initialization now happens in constructor.
- */
-export function Startup(): $CancellablePromise<void> {
-    return $Call.ByID(1548586743);
 }
 
 // Private type creation functions
@@ -98,7 +48,3 @@ const $$createType0 = cancommand$0.Command.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = canmanager$0.Manager.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $models.AdapterInfo.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = candispatcher$0.Dispatcher.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);

@@ -104,7 +104,7 @@ func (t *TCPClient) SendFrame(nid uint32, data []byte) error {
 
 // SendRSSIResponse sends an RSSI response frame.
 func (t *TCPClient) SendRSSIResponse(nid uint32, snrRaw, rssiRaw, testFlag byte) error {
-	data := []byte{DataRSSI, testFlag, snrRaw, rssiRaw}
+	data := []byte{DataRSSI, snrRaw, rssiRaw, testFlag}
 	return t.SendFrame(nid, data)
 }
 

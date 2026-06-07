@@ -13,7 +13,3 @@ export {
     LoRaConfigService,
     LoRaDataService
 };
-
-export {
-    AdapterInfo
-} from "./models.js";

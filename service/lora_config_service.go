@@ -63,8 +63,3 @@ func (s *LoRaConfigService) SerialIsOpen() bool {
 func (s *LoRaConfigService) SetATTransport(transport int) {
 	s.sdk.SetATTransport(lorasdk.ATTransport(transport))
 }
-
-// GetATTransport returns the current AT transport.
-func (s *LoRaConfigService) GetATTransport() int {
-	return int(s.sdk.GetATTransport())
-}

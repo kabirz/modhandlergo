@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
@@ -219,7 +219,7 @@ export function LoRaDataPage() {
         <span className="text-xs text-muted-foreground">NID:</span>
         <span className="font-mono text-xs text-foreground">{nid}</span>
         <label className="flex items-center gap-1 text-xs text-muted-foreground ml-2 cursor-pointer">
-          <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} className="rounded" /> {t("lora.testMode")}
+          <input type="checkbox" checked={testMode} onChange={(e) => { setTestMode(e.target.checked); LoRaDataService.SetTestFlag(e.target.checked ? 1 : 0); }} className="rounded" /> {t("lora.testMode")}
         </label>
       </div>
 

@@ -17,7 +17,6 @@ type CANUpgradeService struct {
 	common   *CommonService
 	canMgr   *canmanager.Manager
 	uartMgr  *uartmanager.Manager
-	channel  string // "can" or "uart"
 }
 
 // NewCANUpgradeService creates a new firmware upgrade service.
@@ -25,7 +24,6 @@ func NewCANUpgradeService(common *CommonService) *CANUpgradeService {
 	return &CANUpgradeService{
 		common:  common,
 		uartMgr: uartmanager.New(),
-		channel: "can",
 	}
 }
 
@@ -57,16 +55,6 @@ func (s *CANUpgradeService) DetectCANDevices() ([]int, error) {
 		return nil, fmt.Errorf("CAN HAL 未初始化")
 	}
 	return mgr.DetectDevices()
-}
-
-// SetChannel selects the upgrade channel ("can" or "uart").
-func (s *CANUpgradeService) SetChannel(ch string) {
-	s.channel = ch
-}
-
-// GetChannel returns the current upgrade channel.
-func (s *CANUpgradeService) GetChannel() string {
-	return s.channel
 }
 
 // --- CAN Operations ---

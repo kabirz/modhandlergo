@@ -11,40 +11,6 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as cancommand$0 from "../internal/cancommand/models.js";
-
-/**
- * GetFrameLabel returns a human-readable label for a CAN frame ID.
- */
-export function GetFrameLabel(id: number): $CancellablePromise<string> {
-    return $Call.ByID(2895820201, id);
-}
-
-/**
- * GetQuickCommands returns the list of quick commands.
- */
-export function GetQuickCommands(): $CancellablePromise<cancommand$0.QuickCommand[]> {
-    return $Call.ByID(3672650225).then(($result: any) => {
-        return $$createType1($result);
-    });
-}
-
-/**
- * IsMonitoring returns whether the bus monitor is active.
- */
-export function IsMonitoring(): $CancellablePromise<boolean> {
-    return $Call.ByID(1651499626);
-}
-
-/**
- * LoraQueryAll sends all query commands in sequence.
- */
-export function LoraQueryAll(): $CancellablePromise<void> {
-    return $Call.ByID(3598519775);
-}
-
 /**
  * SendFrame sends a CAN frame.
  */
@@ -59,13 +25,6 @@ export function SendFrame(canID: number, data: string, dlc: number, isExtended: 
  */
 export function SendLoraCommand(cmd: number, dataHex: string): $CancellablePromise<void> {
     return $Call.ByID(3324332471, cmd, dataHex);
-}
-
-/**
- * SendQuickCommand sends a quick command by index.
- */
-export function SendQuickCommand(index: number): $CancellablePromise<void> {
-    return $Call.ByID(470113654, index);
 }
 
 /**
@@ -88,7 +47,3 @@ export function StartMonitor(): $CancellablePromise<void> {
 export function StopMonitor(): $CancellablePromise<void> {
     return $Call.ByID(664074614);
 }
-
-// Private type creation functions
-const $$createType0 = cancommand$0.QuickCommand.createFrom;
-const $$createType1 = $Create.Array($$createType0);

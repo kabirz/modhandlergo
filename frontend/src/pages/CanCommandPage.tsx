@@ -206,7 +206,6 @@ export function CanCommandPage() {
     }
   }, [frames, autoScroll]);
 
-  const [monitorActive, setMonitorActive] = useState(false);
   const monitorActiveRef = useRef(false);
 
   useEffect(() => {
@@ -221,13 +220,11 @@ export function CanCommandPage() {
     CANCommandService.SetChannel(channel).catch(() => {});
     CANCommandService.StartMonitor().catch(() => {});
     monitorActiveRef.current = true;
-    setMonitorActive(true);
   });
 
   useWailsEvent<any>("can:disconnected", () => {
     CANCommandService.StopMonitor().catch(() => {});
     monitorActiveRef.current = false;
-    setMonitorActive(false);
   });
 
   useWailsEvent<any>("can:frame", (ev) => {

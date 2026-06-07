@@ -11,13 +11,6 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 /**
- * GetATTransport returns the current AT transport.
- */
-export function GetATTransport(): $CancellablePromise<number> {
-    return $Call.ByID(1518896667);
-}
-
-/**
  * GetNetParams queries network parameters.
  */
 export function GetNetParams(gatewayIP: string): $CancellablePromise<void> {

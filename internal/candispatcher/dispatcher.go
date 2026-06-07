@@ -112,13 +112,6 @@ func (d *Dispatcher) WaitFrame(expectedID uint32, timeout time.Duration) (*canha
 	}
 }
 
-// ReplaceBackend swaps the CAN backend (for adapter hot-switching).
-// Must be called when disconnected.
-func (d *Dispatcher) ReplaceBackend(backend canhal.Backend) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.backend = backend
-}
 
 func (d *Dispatcher) readLoop(ctx context.Context) {
 	for {

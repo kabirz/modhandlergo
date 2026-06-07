@@ -11,13 +11,6 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 /**
- * ConnState returns the current connection state.
- */
-export function ConnState(): $CancellablePromise<string> {
-    return $Call.ByID(3868159570);
-}
-
-/**
  * Connect establishes a TCP connection to the LoRa gateway.
  */
 export function Connect(ip: string, port: number): $CancellablePromise<void> {
@@ -32,20 +25,6 @@ export function Disconnect(): $CancellablePromise<void> {
 }
 
 /**
- * IsConnected returns whether TCP is connected.
- */
-export function IsConnected(): $CancellablePromise<boolean> {
-    return $Call.ByID(2253808398);
-}
-
-/**
- * QueryRSSI queries RSSI from the gateway.
- */
-export function QueryRSSI(gatewayIP: string, nid: number): $CancellablePromise<void> {
-    return $Call.ByID(2123317446, gatewayIP, nid);
-}
-
-/**
  * SendFrame sends a data frame to a LoRa node.
  */
 export function SendFrame(nid: number, data: string): $CancellablePromise<void> {
@@ -53,7 +32,7 @@ export function SendFrame(nid: number, data: string): $CancellablePromise<void> 
 }
 
 /**
- * SetTestFlag sets the test mode flag.
+ * SetTestFlag sets the test mode flag for RSSI responses.
  */
 export function SetTestFlag(flag: number): $CancellablePromise<void> {
     return $Call.ByID(3779710207, flag);
