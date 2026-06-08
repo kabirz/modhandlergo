@@ -5,6 +5,39 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+export class GatewaySimConfig {
+    "tcpPort": number;
+    "udpPort": number;
+    "nid": string;
+    "gwid": string;
+
+    /** Creates a new GatewaySimConfig instance. */
+    constructor($$source: Partial<GatewaySimConfig> = {}) {
+        if (!("tcpPort" in $$source)) {
+            this["tcpPort"] = 0;
+        }
+        if (!("udpPort" in $$source)) {
+            this["udpPort"] = 0;
+        }
+        if (!("nid" in $$source)) {
+            this["nid"] = "";
+        }
+        if (!("gwid" in $$source)) {
+            this["gwid"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GatewaySimConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GatewaySimConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GatewaySimConfig($$parsedSource as Partial<GatewaySimConfig>);
+    }
+}
+
 /**
  * SimulatorConfig holds parameters for the CAN device simulator.
  */

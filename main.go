@@ -45,6 +45,9 @@ func init() {
 	application.RegisterEvent[any]("can:disconnected")
 	application.RegisterEvent[string]("simulator:log")
 	application.RegisterEvent[bool]("simulator:status")
+	application.RegisterEvent[string]("gateway:sim:log")
+	application.RegisterEvent[bool]("gateway:sim:status")
+	application.RegisterEvent[bool]("gateway:sim:client")
 }
 
 func main() {
@@ -61,6 +64,7 @@ func main() {
 	canUpgradeSvc := service.NewCANUpgradeService(commonSvc)
 	canCommandSvc := service.NewCANCommandService(commonSvc)
 	simulatorSvc := service.NewSimulatorService(commonSvc)
+	gatewaySimSvc := service.NewGatewaySimService()
 
 	app := application.New(application.Options{
 		Name:        "激光测距工具",
@@ -72,6 +76,7 @@ func main() {
 			application.NewService(canUpgradeSvc),
 			application.NewService(canCommandSvc),
 			application.NewService(simulatorSvc),
+			application.NewService(gatewaySimSvc),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

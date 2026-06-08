@@ -13,6 +13,9 @@ declare module "@wailsio/runtime" {
             "can:frame": { [_ in string]?: any };
             "can:log": string;
             "can:progress": number;
+            "gateway:sim:client": boolean;
+            "gateway:sim:log": string;
+            "gateway:sim:status": boolean;
             "lora:atresponse": string;
             "lora:chfreq": string;
             "lora:connstate": number;

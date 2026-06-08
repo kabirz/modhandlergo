@@ -4,6 +4,7 @@
 import * as CANCommandService from "./cancommandservice.js";
 import * as CANUpgradeService from "./canupgradeservice.js";
 import * as CommonService from "./commonservice.js";
+import * as GatewaySimService from "./gatewaysimservice.js";
 import * as LoRaConfigService from "./loraconfigservice.js";
 import * as LoRaDataService from "./loradataservice.js";
 import * as SimulatorService from "./simulatorservice.js";
@@ -11,11 +12,13 @@ export {
     CANCommandService,
     CANUpgradeService,
     CommonService,
+    GatewaySimService,
     LoRaConfigService,
     LoRaDataService,
     SimulatorService
 };
 
 export {
+    GatewaySimConfig,
     SimulatorConfig
 } from "./models.js";

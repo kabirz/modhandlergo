@@ -153,6 +153,25 @@ const dict: Record<string, Record<Lang, string>> = {
   "sim.noLog":            { zh: "暂无日志",       en: "No log output" },
   "sim.connectFirst":     { zh: "请先连接CAN",    en: "Connect CAN first" },
 
+  // Gateway Simulator
+  "nav.gatewaySim":       { zh: "网关模拟器",     en: "Gateway Sim" },
+  "gw.config":            { zh: "网关配置",       en: "Gateway Config" },
+  "gw.tcpPort":           { zh: "TCP端口",        en: "TCP Port" },
+  "gw.udpPort":           { zh: "UDP端口",        en: "UDP Port" },
+  "gw.start":             { zh: "启动网关",       en: "Start Gateway" },
+  "gw.stop":              { zh: "停止网关",       en: "Stop Gateway" },
+  "gw.commands":          { zh: "快捷操作",       en: "Quick Commands" },
+  "gw.running":           { zh: "运行中",         en: "Running" },
+  "gw.stopped":           { zh: "已停止",         en: "Stopped" },
+  "gw.connected":         { zh: "已连接",         en: "Connected" },
+  "gw.waiting":           { zh: "等待连接",       en: "Waiting" },
+  "gw.telemetry":         { zh: "发送遥测",       en: "Telemetry" },
+  "gw.autoTelemetry":     { zh: "自动遥测",       en: "Auto Telemetry" },
+  "gw.stopAuto":          { zh: "停止自动",       en: "Stop Auto" },
+  "gw.stats":             { zh: "统计",           en: "Stats" },
+  "gw.log":               { zh: "日志输出",       en: "Log Output" },
+  "gw.noLog":             { zh: "暂无日志",       en: "No log output" },
+
   // About dialog
   "about.title":       { zh: "关于",         en: "About" },
   "about.appName":     { zh: "应用名称",     en: "App Name" },
