@@ -14,7 +14,7 @@ const navItems: NavItem[] = [
   { id: "can-command", labelKey: "nav.canCommand", icon: Terminal },
 ];
 
-export const APP_VERSION = "0.2.0";
+export const APP_VERSION = "0.2.1";
 
 interface SidebarProps {
   activePage: string;
