@@ -19,11 +19,14 @@ type notifyingBackend struct {
 }
 
 func (n *notifyingBackend) Write(frame *canhal.Frame) error {
-	err := n.Backend.Write(frame)
-	if err == nil && n.onWrite != nil {
+	// When a simulator callback is registered, route frames in-process only
+	// and skip the physical CAN bus. This prevents PCAN from entering Bus-Off
+	// due to thousands of un-ACKed writes during simulated firmware upgrade.
+	if n.onWrite != nil {
 		n.onWrite(frame)
+		return nil
 	}
-	return err
+	return n.Backend.Write(frame)
 }
 
 // CommonService holds shared CAN infrastructure and adapter selection state.

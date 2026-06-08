@@ -28,10 +28,10 @@ type Dispatcher struct {
 	waitID uint32
 	waitMu sync.Mutex
 
-	// Pending buffer: holds one frame when no waiter is armed yet.
-	// Fixes race on vcan/loopback where response arrives before WaitFrame is called.
-	pending    *canhal.Frame
-	pendingID  uint32
+	// Pending buffer: holds frames that arrive before WaitFrame arms the waiter.
+	// Uses a small slice so background goroutine frames (heartbeat, controller state)
+	// don't clobber the response frame the upgrade protocol is waiting for.
+	pendingBuf []*canhal.Frame
 	pendingMu  sync.Mutex
 
 	running atomic.Bool
@@ -110,10 +110,11 @@ func (d *Dispatcher) FeedFrame(frame *canhal.Frame) {
 	}
 	d.waitMu.Unlock()
 
-	// 2. Write to pending (always overwrite)
+	// 2. Buffer in pending (multi-slot — background goroutines won't clobber responses)
 	d.pendingMu.Lock()
-	d.pending = frame
-	d.pendingID = frame.ID
+	if len(d.pendingBuf) < 4 {
+		d.pendingBuf = append(d.pendingBuf, frame)
+	}
 	d.pendingMu.Unlock()
 
 	// 3. Re-check waiter (race: WaitFrame may have armed between step 1 and 2)
@@ -150,12 +151,12 @@ fanout:
 func (d *Dispatcher) WaitFrame(expectedID uint32, timeout time.Duration) (*canhal.Frame, error) {
 	// Check pending buffer first (response arrived before we started waiting).
 	d.pendingMu.Lock()
-	if d.pending != nil && d.pendingID == expectedID {
-		frame := d.pending
-		d.pending = nil
-		d.pendingID = 0
-		d.pendingMu.Unlock()
-		return frame, nil
+	for i, p := range d.pendingBuf {
+		if p.ID == expectedID {
+			d.pendingBuf = append(d.pendingBuf[:i], d.pendingBuf[i+1:]...)
+			d.pendingMu.Unlock()
+			return p, nil
+		}
 	}
 	d.pendingMu.Unlock()
 
@@ -211,9 +212,8 @@ func (d *Dispatcher) readLoop(ctx context.Context) {
 			// No waiter armed — buffer one frame for late WaitFrame calls.
 			// Only buffer if it matches a typical response ID (0x102 PlatformTx).
 			d.pendingMu.Lock()
-			if d.pending == nil {
-				d.pending = frame
-				d.pendingID = frame.ID
+			if len(d.pendingBuf) < 4 {
+				d.pendingBuf = append(d.pendingBuf, frame)
 			}
 			d.pendingMu.Unlock()
 		}

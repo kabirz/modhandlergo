@@ -128,7 +128,7 @@ func (s *SimulatorService) Start(config SimulatorConfig) error {
 
 	// Periodic heartbeat
 	if !config.NoHeartbeat {
-		go s.heartbeatLoop(ctx, backend)
+		go s.heartbeatLoop(ctx)
 	}
 
 	// Periodic handler state
@@ -137,7 +137,7 @@ func (s *SimulatorService) Start(config SimulatorConfig) error {
 		handlerInterval = time.Duration(config.HandlerInterval * float64(time.Second))
 	}
 	if !config.NoHandler {
-		go s.handlerStateLoop(ctx, backend, handlerInterval)
+		go s.handlerStateLoop(ctx, handlerInterval)
 	}
 
 	s.emitStatus(true)
@@ -373,32 +373,22 @@ func (s *SimulatorService) sendResponse(code, val uint32) {
 }
 
 func (s *SimulatorService) sendFrame(id uint32, data []byte) {
-	backend := s.common.backend
 	dispatcher := s.common.dispatcher
-	if backend == nil {
+	if dispatcher == nil {
 		return
 	}
 	var d [8]byte
-	copy(d[:], data)
-	frame := &canhal.Frame{ID: id, DLC: 8, Data: d}
-	backend.Write(frame)
-	// Feed into dispatcher so WaitFrame and subscribers can see it
-	if dispatcher != nil {
-		dispatcher.FeedFrame(frame)
-	}
-	// No emitFrame here — FeedFrame fans out to subscribers which emit can:frame
+	n := copy(d[:], data)
+	frame := &canhal.Frame{ID: id, DLC: uint8(n), Data: d}
+	dispatcher.FeedFrame(frame)
 }
 
 // ── Periodic goroutines ──
 
-func (s *SimulatorService) heartbeatLoop(ctx context.Context, backend canhal.Backend) {
-	dispatcher := s.common.dispatcher
+func (s *SimulatorService) heartbeatLoop(ctx context.Context) {
 	frame := &canhal.Frame{ID: canmanager.Heartbeat, DLC: 1, Data: [8]byte{5}}
 	for {
-		backend.Write(frame)
-		if dispatcher != nil {
-			dispatcher.FeedFrame(frame)
-		}
+		s.sendFrame(canmanager.Heartbeat, frame.Data[:frame.DLC])
 		select {
 		case <-ctx.Done():
 			return
@@ -407,8 +397,7 @@ func (s *SimulatorService) heartbeatLoop(ctx context.Context, backend canhal.Bac
 	}
 }
 
-func (s *SimulatorService) handlerStateLoop(ctx context.Context, backend canhal.Backend, interval time.Duration) {
-	dispatcher := s.common.dispatcher
+func (s *SimulatorService) handlerStateLoop(ctx context.Context, interval time.Duration) {
 	t := 0.0
 	for {
 		x := int16(math.Sin(t*0.5) * 90)
@@ -423,11 +412,7 @@ func (s *SimulatorService) handlerStateLoop(ctx context.Context, backend canhal.
 		data[6] = 0xFF
 		data[7] = 0xFF
 
-		frame := &canhal.Frame{ID: canmanager.ControllerState, DLC: 8, Data: data}
-		backend.Write(frame)
-		if dispatcher != nil {
-			dispatcher.FeedFrame(frame)
-		}
+		s.sendFrame(canmanager.ControllerState, data[:])
 
 		t += interval.Seconds()
 		select {
