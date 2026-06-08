@@ -123,9 +123,9 @@ func (s *CommonService) CreateCommand() *cancommand.Command {
 	return cancommand.New(s.backend, s.dispatcher)
 }
 
-// SetOnFrameSent registers a callback invoked after every backend.Write.
+// setOnFrameSent registers a callback invoked after every backend.Write.
 // Used by the simulator to see frames sent by the PC tool.
-func (s *CommonService) SetOnFrameSent(cb func(*canhal.Frame)) {
+func (s *CommonService) setOnFrameSent(cb func(*canhal.Frame)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.onFrameSent = cb

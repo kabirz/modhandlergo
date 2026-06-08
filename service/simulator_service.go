@@ -122,7 +122,7 @@ func (s *SimulatorService) Start(config SimulatorConfig) error {
 	s.running = true
 
 	// Register callback to receive frames sent by the PC tool
-	s.common.SetOnFrameSent(func(frame *canhal.Frame) {
+	s.common.setOnFrameSent(func(frame *canhal.Frame) {
 		s.onFrame(frame)
 	})
 
@@ -162,7 +162,7 @@ func (s *SimulatorService) Stop() error {
 	}
 	// Clear the frame callback so PC tool frames no longer reach the simulator
 	if s.common != nil {
-		s.common.SetOnFrameSent(nil)
+		s.common.setOnFrameSent(nil)
 	}
 	s.emitStatus(false)
 	s.log("CAN device simulator stopped")
