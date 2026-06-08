@@ -61,8 +61,8 @@ function App() {
         e.preventDefault();
         setShowSimulators((prev) => {
           const next = !prev;
-          // If hiding and current page is a simulator, navigate away
-          if (!next && (activePage === "simulator" || activePage === "gateway-sim")) {
+          // If hiding and current page is hidden, navigate away
+          if (!next && (activePage === "simulator" || activePage === "gateway-sim" || activePage === "terminal")) {
             setActivePage("lora-data");
           }
           return next;

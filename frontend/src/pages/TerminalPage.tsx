@@ -13,7 +13,7 @@ import "@xterm/xterm/css/xterm.css";
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 
 const xtermTheme = {
-  background: "#191A21",
+  background: "#282A36",
   foreground: "#F8F8F2",
   cursor: "#F8F8F2",
   selectionBackground: "#44475A",
@@ -67,8 +67,6 @@ export function TerminalPage() {
       fontSize: 12,
       fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace",
       allowProposedApi: true,
-      cols: 80,
-      rows: 24,
       scrollback: 10000,
       convertEol: true,
     });
@@ -78,7 +76,8 @@ export function TerminalPage() {
 
     term.loadAddon(fitAddon);
     term.open(termRef.current);
-    fitAddon.fit();
+    // Delay fit to let layout settle first
+    requestAnimationFrame(() => fitAddon.fit());
 
     // Intercept Backspace: xterm sends \x7f (DEL) by default,
     // but most embedded devices expect \b (0x08).
@@ -251,7 +250,7 @@ export function TerminalPage() {
           <div
             ref={termRef}
             className="h-full rounded-md overflow-hidden"
-            style={{ background: "#191A21" }}
+            style={{ background: "#282A36" }}
           />
         </CardContent>
       </Card>

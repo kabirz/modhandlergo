@@ -12,9 +12,9 @@ const navItems: NavItem[] = [
   { id: "lora-config", labelKey: "nav.loraConfig", icon: Settings },
   { id: "firmware", labelKey: "nav.firmware", icon: Upload },
   { id: "can-command", labelKey: "nav.canCommand", icon: Terminal },
-  { id: "terminal", labelKey: "nav.terminal", icon: Monitor },
   { id: "simulator", labelKey: "nav.simulator", icon: Cpu },
   { id: "gateway-sim", labelKey: "nav.gatewaySim", icon: Router },
+  { id: "terminal", labelKey: "nav.terminal", icon: Monitor },
 ];
 
 export const APP_VERSION = "0.2.1";
@@ -229,7 +229,7 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme, defau
         {/* Navigation */}
         <nav className="flex-1 py-2 px-2 space-y-1">
           {navItems.filter((item) => {
-            if (item.id === "simulator" || item.id === "gateway-sim") return showSimulators;
+            if (item.id === "simulator" || item.id === "gateway-sim" || item.id === "terminal") return showSimulators;
             return true;
           }).map((item) => {
             const Icon = item.icon;
