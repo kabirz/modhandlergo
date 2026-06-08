@@ -451,7 +451,7 @@ func (s *GatewaySimService) autoTeleLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if s.autoTele {
-				s.sendTelemetry(rand.Intn(101)-50, rand.Intn(101)-50, rand.Intn(2))
+				s.sendTelemetry(rand.Intn(501)-250, rand.Intn(501)-250, rand.Intn(2))
 			}
 		}
 	}
@@ -723,8 +723,8 @@ func (s *GatewaySimService) SendCommand(cmd string) error {
 
 	switch action {
 	case "telemetry":
-		x := rand.Intn(101) - 50
-		y := rand.Intn(101) - 50
+		x := rand.Intn(501) - 250
+		y := rand.Intn(501) - 250
 		btn := rand.Intn(2)
 		s.sendTelemetry(x, y, btn)
 	case "rssi":
