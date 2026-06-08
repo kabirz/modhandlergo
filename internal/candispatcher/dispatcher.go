@@ -94,6 +94,57 @@ func (d *Dispatcher) Subscribe(cb func(*canhal.Frame)) func() {
 	}
 }
 
+// FeedFrame injects a frame into the dispatcher as if it was read from the backend.
+// Used by the simulator to make response frames visible to WaitFrame and subscribers.
+func (d *Dispatcher) FeedFrame(frame *canhal.Frame) {
+	// 1. Try synchronous waiter first
+	d.waitMu.Lock()
+	if d.waitID != 0 && frame.ID == d.waitID {
+		d.waitID = 0
+		d.waitMu.Unlock()
+		select {
+		case d.waitCh <- frame:
+		default:
+		}
+		goto fanout
+	}
+	d.waitMu.Unlock()
+
+	// 2. Write to pending (always overwrite)
+	d.pendingMu.Lock()
+	d.pending = frame
+	d.pendingID = frame.ID
+	d.pendingMu.Unlock()
+
+	// 3. Re-check waiter (race: WaitFrame may have armed between step 1 and 2)
+	d.waitMu.Lock()
+	if d.waitID != 0 && frame.ID == d.waitID {
+		d.waitID = 0
+		d.waitMu.Unlock()
+		select {
+		case d.waitCh <- frame:
+		default:
+		}
+	} else {
+		d.waitMu.Unlock()
+	}
+
+fanout:
+	// 4. Fan out to all async subscribers
+	sp := d.cbPool.Get().(*[]func(*canhal.Frame))
+	cbs := (*sp)[:0]
+	d.mu.RLock()
+	for _, cb := range d.subscribers {
+		cbs = append(cbs, cb)
+	}
+	d.mu.RUnlock()
+	for _, cb := range cbs {
+		cb(frame)
+	}
+	*sp = cbs
+	d.cbPool.Put(sp)
+}
+
 // WaitFrame blocks until a frame with the expected ID arrives or timeout.
 // Used by the firmware upgrade protocol for request/response.
 func (d *Dispatcher) WaitFrame(expectedID uint32, timeout time.Duration) (*canhal.Frame, error) {

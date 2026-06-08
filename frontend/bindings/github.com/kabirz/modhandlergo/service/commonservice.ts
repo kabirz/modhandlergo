@@ -57,6 +57,14 @@ export function SetConnectedChannel(ch: number): $CancellablePromise<void> {
     return $Call.ByID(25497464, ch);
 }
 
+/**
+ * SetOnFrameSent registers a callback invoked after every backend.Write.
+ * Used by the simulator to see frames sent by the PC tool.
+ */
+export function SetOnFrameSent(cb: any): $CancellablePromise<void> {
+    return $Call.ByID(4193834190, cb);
+}
+
 // Private type creation functions
 const $$createType0 = cancommand$0.Command.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);

@@ -31,11 +31,24 @@
 
 ### CAN 命令
 - 自定义 CAN 帧发送 (标准帧/扩展帧/数据帧/远程帧)
-- 总线监视器 (自动标注已知帧 ID，稳定 key 优化)
+- 总线监视器 (自动标注已知帧 ID，中英文 i18n)
 - 快捷命令按钮
-- LoRa 远程配参 (协议/模式/通道/NID/GWID/上电/测试模式)
+- LoRa 远程配参 (协议/模式/通道/NID/GWID/上电/测试模式勾选框)
 - 回发扫描仪数据 (收到手柄数据后自动响应)
 - 未连接 CAN 时标签灰显 + 提示
+
+### 设备模拟器
+- 纯 Go 实现，共享 CAN HAL，无需 Python 依赖
+- 模拟嵌入式设备：固件升级响应、LoRa 配参 (14 条命令)、心跳、手柄状态
+- 需先通过固件升级页连接 CAN，再启动模拟器
+- 可配置固件版本、手柄间隔、禁用心跳/手柄
+
+### 网关模拟器
+- 纯 Go 实现，TCP 帧协议 (CRC16-CCITT) + UDP 设备发现/AT 命令
+- 模拟 USR-LG210-L 网关 + 远端 LoRa 节点
+- 快捷操作：遥测发送 (随机值)、RSSI 查询、自动遥测、统计
+- 可配置 TCP/UDP 端口、NID、GWID
+- 客户端连接后才可操作，断开自动停止自动遥测
 
 ### 其他
 - 版本更新检查（启动自动检测 + 手动点击版本号）
@@ -139,10 +152,12 @@ ModHandlerGo/
 │   ├── upgrade/                     # 公共固件升级逻辑 (Transport 接口 + 状态机)
 │   ├── lorasdk/                     # LoRa SDK (TCP/UDP/Serial AT + 单元测试)
 │   └── loraservice/                 # Wails 事件桥接层
-├── service/                         # Wails 服务绑定层
-│   ├── common_service.go            # 共享 CAN 基础设施
+├── service/                         # Wails 服务绑定层 (7 个)
+│   ├── common_service.go            # 共享 CAN 基础设施 + notifyingBackend
 │   ├── can_upgrade_service.go       # 固件升级服务
 │   ├── can_command_service.go       # CAN 命令服务
+│   ├── simulator_service.go         # CAN 设备模拟器 (纯 Go)
+│   ├── gateway_sim_service.go       # LoRa 网关模拟器 (纯 Go, TCP+UDP)
 │   ├── lora_data_service.go         # LoRa 数据服务
 │   └── lora_config_service.go       # LoRa 配置服务
 ├── frontend/
@@ -152,14 +167,15 @@ ModHandlerGo/
 │   │   ├── hooks/useEvents.ts       # Wails 事件监听 hook
 │   │   ├── components/
 │   │   │   └── layout/sidebar.tsx   # 侧边栏 (导航+主题+语言+版本检查+关于)
-│   │   └── pages/                   # 4 个功能页面 (React.memo 优化)
+│   │   └── pages/                   # 6 个功能页面 (React.memo 优化)
 │   └── bindings/                    # Wails 自动生成的 TypeScript 绑定
 ├── build/                           # 构建配置 (NSIS/nfpm/图标)
 │   └── windows/
 │       ├── icon.svg                 # 矢量 Logo
 │       └── icon.ico                 # Windows 图标 (16-256px)
 ├── scripts/
-│   └── lora_gateway_sim.py          # LoRa 网关模拟器 (TCP+UDP, 用于测试)
+│   ├── can_upgrade_sim.py           # CAN 设备模拟器 (Python 版, 备用)
+│   └── lora_gateway_sim.py          # LoRa 网关模拟器 (Python 版, 备用)
 ├── .github/workflows/release.yml    # GitHub Actions CI/CD
 ├── go.mod
 └── Taskfile.yml
@@ -171,6 +187,8 @@ ModHandlerGo/
 - **串口可靠性**：打开操作 3 秒超时 + AT 模式懒加载，无效端口不会阻塞
 - **前端性能**：React.memo 组件优化 + 合并高频 setState + sync.Pool 复用切片 + 稳定列表 key
 - **事件驱动**：后端 `app.Event.Emit` → 前端 `useWailsEvent`，零轮询
+- **模拟器共享 CAN HAL**：设备模拟器通过 `dispatcher.FeedFrame` 注入帧，`notifyingBackend` 拦截发送帧，避免 loopback 依赖
+- **网关模拟器纯 Go**：TCP 帧协议 (CRC16-CCITT) + UDP 设备发现/AT 命令全部 Go 实现，无 Python 依赖
 
 ## 许可
 

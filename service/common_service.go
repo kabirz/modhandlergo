@@ -12,14 +12,30 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
+// notifyingBackend wraps a canhal.Backend and calls a callback after every Write.
+type notifyingBackend struct {
+	canhal.Backend
+	onWrite func(*canhal.Frame)
+}
+
+func (n *notifyingBackend) Write(frame *canhal.Frame) error {
+	err := n.Backend.Write(frame)
+	if err == nil && n.onWrite != nil {
+		n.onWrite(frame)
+	}
+	return err
+}
+
 // CommonService holds shared CAN infrastructure and adapter selection state.
 // It is the first service registered and provides shared instances to other services.
 type CommonService struct {
 	mu          sync.Mutex
 	backend     canhal.Backend
+	rawBackend  canhal.Backend
 	dispatcher  *candispatcher.Dispatcher
 	adapterType canhal.Adapter
 	channel     int
+	onFrameSent func(*canhal.Frame)
 }
 
 // NewCommonService creates the common service with default adapter.
@@ -57,17 +73,17 @@ func (s *CommonService) SetAdapterType(adapterType int) error {
 		return fmt.Errorf("invalid adapter type: %d", adapterType)
 	}
 
-	// Create new backend
 	backend := canhal.NewBackend(at)
 	if backend == nil {
 		return fmt.Errorf("adapter type %d not available on this platform", adapterType)
 	}
 
-	// Create new dispatcher
 	dispatcher := candispatcher.New(backend)
+	wrapped := &notifyingBackend{Backend: backend, onWrite: s.onFrameSent}
 
 	s.adapterType = at
-	s.backend = backend
+	s.rawBackend = backend
+	s.backend = wrapped
 	s.dispatcher = dispatcher
 
 	return nil
@@ -105,4 +121,15 @@ func (s *CommonService) CreateCommand() *cancommand.Command {
 		return nil
 	}
 	return cancommand.New(s.backend, s.dispatcher)
+}
+
+// SetOnFrameSent registers a callback invoked after every backend.Write.
+// Used by the simulator to see frames sent by the PC tool.
+func (s *CommonService) SetOnFrameSent(cb func(*canhal.Frame)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onFrameSent = cb
+	if nb, ok := s.backend.(*notifyingBackend); ok {
+		nb.onWrite = cb
+	}
 }

@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-Go + Wails v3 的激光测距系统 PC 配套工具。支持 CAN 总线调试、固件升级、LoRa 网关通信。
+Go + Wails v3 的激光测距系统 PC 配套工具。支持 CAN 总线调试、固件升级、LoRa 网关通信、设备/网关模拟器。
 
 ## 技术栈
 
@@ -18,21 +18,26 @@ Go + Wails v3 的激光测距系统 PC 配套工具。支持 CAN 总线调试、
 ├── main.go                     # 入口：注册服务+事件+窗口
 ├── internal/
 │   ├── canhal/                 # CAN HAL 接口 + PCAN/SocketCAN 实现
-│   ├── candispatcher/          # goroutine 读循环 + channel pub/sub
+│   ├── candispatcher/          # goroutine 读循环 + channel pub/sub + FeedFrame
 │   ├── canmanager/             # 固件升级状态机 (0x101/0x102/0x103)
 │   ├── cancommand/             # 帧收发 + 总线监视 + 快捷命令
 │   ├── uartmanager/            # 串口固件升级 (帧格式: 0xAA+TYPE+LEN_BE+DATA+CRC16_BE+0x55)
 │   ├── lorasdk/                # LoRa SDK: TCP 数据流 / UDP 发现 / Serial AT
 │   └── loraservice/            # Wails 事件桥接
-├── service/                    # Wails 服务绑定层 (5 个 service)
-├── scripts/
-│   └── lora_gateway_sim.py     # LoRa 网关模拟器 (TCP+UDP, 用于测试)
+├── service/                    # Wails 服务绑定层 (7 个 service)
+│   ├── common_service.go       # 共享 CAN 基础设施 + notifyingBackend
+│   ├── can_upgrade_service.go  # 固件升级服务
+│   ├── can_command_service.go  # CAN 命令服务
+│   ├── simulator_service.go    # CAN 设备模拟器 (纯 Go, 共享 CAN HAL)
+│   ├── gateway_sim_service.go  # LoRa 网关模拟器 (纯 Go, TCP+UDP)
+│   ├── lora_data_service.go    # LoRa 数据服务
+│   └── lora_config_service.go  # LoRa 配置服务
 ├── frontend/src/
-│   ├── App.tsx                 # 左侧边栏 + 页面路由
-│   ├── lib/i18n.tsx            # 中英文翻译 (120+ 键)
+│   ├── App.tsx                 # 左侧边栏 + 页面路由 (6 个页面)
+│   ├── lib/i18n.tsx            # 中英文翻译 (150+ 键)
 │   ├── hooks/useEvents.ts      # Wails 事件监听 (useRef 保持稳定)
 │   ├── components/              # shadcn/ui 风格组件
-│   └── pages/                  # LoRa数据/LoRa配置/固件升级/CAN命令
+│   └── pages/                  # LoRa数据/LoRa配置/固件升级/CAN命令/设备模拟器/网关模拟器
 ├── build/                      # 构建配置 (NSIS/nfpm/图标)
 └── .github/workflows/release.yml  # CI/CD: tag → 自动构建+发布
 ```
@@ -52,6 +57,9 @@ wails3 task windows:create:nsis:installer
 # Linux 打包
 wails3 task linux:create:deb
 wails3 task linux:create:rpm
+
+# 重新生成 TypeScript 绑定
+wails3 generate bindings -d frontend/bindings -ts ./...
 ```
 
 ## 关键设计决策
@@ -61,6 +69,8 @@ wails3 task linux:create:rpm
 3. **UDP 广播**: 所有 LoRa 网关通信走广播 (port 1566)，MAC 字段标识目标
 4. **帧格式**: UART 帧 `0xAA+TYPE+LEN_BE+DATA+CRC16_BE+0x55`，CAN 帧大端序
 5. **主题**: 亮色 (ccx 风格) / 暗色 (Dracula 配色)
+6. **模拟器共享 CAN HAL**: 设备模拟器通过 `dispatcher.FeedFrame` 注入帧，`notifyingBackend` 拦截发送帧，避免 loopback 依赖
+7. **网关模拟器纯 Go**: TCP 帧协议 (CRC16-CCITT) + UDP 设备发现/AT 命令全部 Go 实现
 
 ## CAN 协议 (mod-can.h)
 
@@ -89,8 +99,9 @@ wails3 task linux:create:rpm
 
 - 后端日志用英文（技术日志不翻译）
 - 前端 UI 标签通过 `t("key")` 翻译
-- 提交前必须验证构建通过
+- 提交前必须验证构建通过 (`go build .` + `tsc --noEmit`)
 - tag 格式: `v*.*.*` (如 v0.1.0)
+- 新增 Service 后需运行 `wails3 generate bindings -d frontend/bindings -ts ./...` 更新绑定
 
 ## LoRa 工作模式协议
 
@@ -102,3 +113,15 @@ NWMODE 决定组网模式，工作模式根据 NWMODE 选择不同的 AT 命令�
 | 1 | 组网 | AT+WMODE | 0=广播透传 / 1=指定节点 / 2=主动上报 |
 
 前端根据 `isMesh` 自动切换下拉选项和 AT 命令，SET NWMODE 后自动查询对应工作模式。
+
+## 模拟器
+
+### CAN 设备模拟器 (simulator_service.go)
+- 纯 Go 实现，共享 CAN HAL（通过 `notifyingBackend` + `dispatcher.FeedFrame`）
+- 模拟固件升级响应 (0x102)、LoRa 配参 (0x106)、心跳 (0x763)、手柄状态 (0x1E3)
+- 需先通过固件升级页连接 CAN，再启动模拟器
+
+### LoRa 网关模拟器 (gateway_sim_service.go)
+- 纯 Go 实现，TCP 服务器 (帧协议) + UDP 服务器 (设备发现/AT 命令)
+- 支持遥测发送、RSSI 查询、自动遥测
+- 独立运行，无需 CAN 连接
