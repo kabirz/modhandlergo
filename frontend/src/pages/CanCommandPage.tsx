@@ -10,6 +10,7 @@ import { CANCommandService } from "../../bindings/github.com/kabirz/modhandlergo
 
 interface FrameEntry {
   id: number;
+  canId: number;
   data: number[];
   dlc: number;
   isTX: boolean;
@@ -17,15 +18,17 @@ interface FrameEntry {
   timestamp: string;
 }
 
-const FRAME_LABELS: Record<number, string> = {
-  0x101: "Control", 0x102: "Response", 0x103: "Firmware",
-  0x105: "LoRa Config", 0x106: "LoRa Resp",
-  0x1E3: "Joystick", 0x263: "Laser", 0x363: "X/Y Coord", 0x463: "Z Coord", 0x763: "Heartbeat",
-};
-
 let frameIdCounter = 0;
 
-// --- Sub-components ---
+function useFrameLabels(): Record<number, string> {
+  const { t } = useI18n();
+  return {
+    0x101: t("can.control"), 0x102: t("can.response"), 0x103: t("can.firmware"),
+    0x105: t("can.loraConfig"), 0x106: t("can.loraResp"),
+    0x1E3: t("can.joystick"), 0x263: t("can.laser"), 0x363: t("can.coordXY"),
+    0x463: t("can.coordZ"), 0x763: t("can.heartbeat"),
+  };
+}
 
 const FrameConfigCard = memo(function FrameConfigCard() {
   const { t } = useI18n();
@@ -81,6 +84,16 @@ const FrameConfigCard = memo(function FrameConfigCard() {
   );
 });
 
+const LORA_CMD_QUERY_MODE = 0x02;
+const LORA_CMD_QUERY_CH1  = 0x04;
+const LORA_CMD_QUERY_CH2  = 0x06;
+const LORA_CMD_QUERY_NID  = 0x07;
+const LORA_CMD_QUERY_GWID = 0x09;
+const LORA_CMD_QUERY_PNUM = 0x0B;
+const LORA_CMD_SET_TEST   = 0x0D;
+const LORA_CMD_SET_POWER  = 0x0F;
+const LORA_CONFIG_TX      = 0x106;
+
 const LoraConfigCard = memo(function LoraConfigCard() {
   const { t } = useI18n();
   const [loraProt, setLoraProt] = useState(1);
@@ -92,8 +105,50 @@ const LoraConfigCard = memo(function LoraConfigCard() {
   const [loraPnum, setLoraPnum] = useState(0);
   const [loraNid, setLoraNid] = useState(0);
   const [loraGwid, setLoraGwid] = useState(0);
+  const [loraGwidInput, setLoraGwidInput] = useState("00000000");
   const [loraPowered, setLoraPowered] = useState(false);
   const [loraTestMode, setLoraTestMode] = useState(false);
+
+  // Parse 0x106 LoRa config responses
+  useWailsEvent<any>("can:frame", (ev) => {
+    if (ev.id !== LORA_CONFIG_TX || !ev.data || ev.data.length < 2) return;
+    const d = ev.data;
+    switch (d[0]) {
+      case LORA_CMD_QUERY_MODE:
+        setLoraProt((d[1] >> 4) & 0x0F);
+        setLoraMode(d[1] & 0x0F);
+        break;
+      case LORA_CMD_QUERY_CH1:
+        setLoraCh1Spd(d[1]);
+        setLoraCh1Freq((d[2] << 8) | d[3]);
+        break;
+      case LORA_CMD_QUERY_CH2:
+        setLoraCh2Spd(d[1]);
+        setLoraCh2Freq((d[2] << 8) | d[3]);
+        break;
+      case LORA_CMD_QUERY_PNUM:
+        setLoraPnum(d[1]);
+        break;
+      case LORA_CMD_QUERY_NID:
+        if (d.length >= 8) setLoraNid((d[4] << 24) | (d[5] << 16) | (d[6] << 8) | d[7]);
+        break;
+      case LORA_CMD_QUERY_GWID:
+        if (d.length >= 8) {
+          const gwid = (d[4] << 24) | (d[5] << 16) | (d[6] << 8) | d[7];
+          setLoraGwid(gwid);
+          setLoraGwidInput(gwid.toString(16).toUpperCase().padStart(8, "0"));
+        }
+        break;
+      case LORA_CMD_SET_TEST:
+        setLoraTestMode(d[1] !== 0);
+        break;
+      case LORA_CMD_SET_POWER:
+        setLoraPowered(d[1] !== 0);
+        break;
+      default:
+        break;
+    }
+  });
 
   const protOptions = ["NODE", "LG210", "LG220"];
   const modeOptions = ["FP", "TRANS", "NET"];
@@ -105,24 +160,33 @@ const LoraConfigCard = memo(function LoraConfigCard() {
       <CardHeader className="pb-1 pt-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">{t("can.loraConfig")}</CardTitle>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Button onClick={async () => { await CANCommandService.SendLoraCommand(0x0F, loraPowered ? "00" : "01"); setLoraPowered(!loraPowered); }} size="sm" variant={loraPowered ? "destructive" : "default"} className="h-6 text-[10px] px-2">
               {loraPowered ? t("can.powerOff") : t("can.powerOn")}
             </Button>
-            <Button onClick={async () => { await CANCommandService.SendLoraCommand(0x0D, loraTestMode ? "00" : "01"); setLoraTestMode(!loraTestMode); }} size="sm" variant="outline" className="h-6 text-[10px] px-2" disabled={!loraPowered}>
-              {loraTestMode ? t("can.exitTest") : t("can.test")}
-            </Button>
+            <label className={`flex items-center gap-1 text-[10px] ${!loraPowered ? "text-muted-foreground" : "cursor-pointer"}`}>
+              <input
+                type="checkbox"
+                checked={loraTestMode}
+                onChange={async (e) => {
+                  await CANCommandService.SendLoraCommand(0x0D, e.target.checked ? "01" : "00");
+                  setLoraTestMode(e.target.checked);
+                }}
+                disabled={!loraPowered}
+              />
+              {t("can.testMode")}
+            </label>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-1.5">
         {/* Protocol + Mode */}
         <div className="flex items-center gap-2">
-          <label className="text-[10px] text-muted-foreground shrink-0">协议:</label>
+          <label className="text-[10px] text-muted-foreground shrink-0">{t("cfg.loraProto")}:</label>
           <select value={loraProt} onChange={(e) => setLoraProt(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-20" disabled={!loraPowered}>
             {protOptions.map((o, i) => <option key={o} value={i}>{o}</option>)}
           </select>
-          <label className="text-[10px] text-muted-foreground shrink-0 ml-2">模式:</label>
+          <label className="text-[10px] text-muted-foreground shrink-0 ml-2">{t("cfg.mode")}:</label>
           <select value={loraMode} onChange={(e) => setLoraMode(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-20" disabled={!loraPowered}>
             {modeOptions.map((o, i) => <option key={o} value={i}>{o}</option>)}
           </select>
@@ -133,10 +197,10 @@ const LoraConfigCard = memo(function LoraConfigCard() {
         {/* CH1 + CH2 */}
         <div className="flex items-center gap-2">
           <label className="text-[10px] text-muted-foreground shrink-0">CH1:</label>
-          <select value={loraCh1Spd} onChange={(e) => setLoraCh1Spd(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-12" disabled={!loraPowered}>
+          <select value={loraCh1Spd} onChange={(e) => setLoraCh1Spd(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-14" disabled={!loraPowered}>
             {spdOptions.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={loraCh1Freq} onChange={(e) => setLoraCh1Freq(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-14" disabled={!loraPowered}>
+          <select value={loraCh1Freq} onChange={(e) => setLoraCh1Freq(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-18" disabled={!loraPowered}>
             {freqOptions.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
           <Button onClick={() => CANCommandService.SendLoraCommand(4, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-1" disabled={!loraPowered}>{t("cfg.query")}</Button>
@@ -144,10 +208,10 @@ const LoraConfigCard = memo(function LoraConfigCard() {
         </div>
         <div className="flex items-center gap-2">
           <label className="text-[10px] text-muted-foreground shrink-0">CH2:</label>
-          <select value={loraCh2Spd} onChange={(e) => setLoraCh2Spd(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-12" disabled={!loraPowered}>
+          <select value={loraCh2Spd} onChange={(e) => setLoraCh2Spd(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-14" disabled={!loraPowered}>
             {spdOptions.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={loraCh2Freq} onChange={(e) => setLoraCh2Freq(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-14" disabled={!loraPowered}>
+          <select value={loraCh2Freq} onChange={(e) => setLoraCh2Freq(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-18" disabled={!loraPowered}>
             {freqOptions.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
           <Button onClick={() => CANCommandService.SendLoraCommand(6, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-1" disabled={!loraPowered}>{t("cfg.query")}</Button>
@@ -157,17 +221,28 @@ const LoraConfigCard = memo(function LoraConfigCard() {
         {/* PNUM + GWID + NID */}
         <div className="flex items-center gap-1">
           <label className="text-[10px] text-muted-foreground shrink-0">PNUM:</label>
-          <select value={loraPnum} onChange={(e) => setLoraPnum(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-10" disabled={!loraPowered}>
+          <select value={loraPnum} onChange={(e) => setLoraPnum(Number(e.target.value))} className="h-6 text-xs bg-background border border-input rounded px-1 w-12" disabled={!loraPowered}>
             {[0, 1, 2].map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
           <Button onClick={() => CANCommandService.SendLoraCommand(0x0B, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>{t("cfg.query")}</Button>
           <Button onClick={() => CANCommandService.SendLoraCommand(0x0C, loraPnum.toString(16).padStart(2, "0"))} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>{t("cfg.set")}</Button>
           <label className="text-[10px] text-muted-foreground shrink-0">GWID:</label>
-          <Input value={loraGwid.toString(16).toUpperCase().padStart(8, "0")} onChange={(e) => setLoraGwid(parseInt(e.target.value, 16) || 0)} className="w-16 h-6 text-[10px] font-mono" disabled={!loraPowered} />
+          <Input
+            value={loraGwidInput}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 8);
+              setLoraGwidInput(v);
+              if (v.length === 8) setLoraGwid(parseInt(v, 16));
+            }}
+            onBlur={() => setLoraGwidInput(loraGwid.toString(16).toUpperCase().padStart(8, "0"))}
+            className="w-20 h-6 text-[10px] font-mono"
+            disabled={!loraPowered}
+            maxLength={8}
+          />
           <Button onClick={() => CANCommandService.SendLoraCommand(9, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>{t("cfg.query")}</Button>
-          <Button onClick={() => CANCommandService.SendLoraCommand(0x0A, `${((loraGwid >> 24) & 0xFF).toString(16).padStart(2, "0")}${((loraGwid >> 16) & 0xFF).toString(16).padStart(2, "0")}${((loraGwid >> 8) & 0xFF).toString(16).padStart(2, "0")}${(loraGwid & 0xFF).toString(16).padStart(2, "0")}`)} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>{t("cfg.set")}</Button>
+          <Button onClick={() => CANCommandService.SendLoraCommand(0x0A, `000000${((loraGwid >> 24) & 0xFF).toString(16).padStart(2, "0")}${((loraGwid >> 16) & 0xFF).toString(16).padStart(2, "0")}${((loraGwid >> 8) & 0xFF).toString(16).padStart(2, "0")}${(loraGwid & 0xFF).toString(16).padStart(2, "0")}`)} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>{t("cfg.set")}</Button>
           <label className="text-[10px] text-muted-foreground shrink-0">NID:</label>
-          <Input value={loraNid.toString(16).toUpperCase().padStart(8, "0")} onChange={(e) => setLoraNid(parseInt(e.target.value, 16) || 0)} className="w-16 h-6 text-[10px] font-mono" disabled={!loraPowered} />
+          <span className="w-20 h-6 text-[10px] font-mono bg-muted border border-input rounded px-1 flex items-center">{loraNid.toString(16).toUpperCase().padStart(8, "0")}</span>
           <Button onClick={() => CANCommandService.SendLoraCommand(7, "")} size="sm" variant="ghost" className="h-5 text-[10px] px-0.5" disabled={!loraPowered}>{t("cfg.query")}</Button>
         </div>
       </CardContent>
@@ -180,7 +255,7 @@ const FrameRow = memo(function FrameRow({ frame }: { frame: FrameEntry }) {
     <tr className={`whitespace-nowrap ${frame.isTX ? "text-terminal-tx" : "text-terminal-rx"}`}>
       <td className="px-2 py-0.5">{frame.timestamp}</td>
       <td className="px-2 py-0.5">{frame.isTX ? "TX" : "RX"}</td>
-      <td className="px-2 py-0.5">0x{frame.id.toString(16).toUpperCase().padStart(3, "0")}</td>
+      <td className="px-2 py-0.5">0x{frame.canId.toString(16).toUpperCase().padStart(3, "0")}</td>
       <td className="px-2 py-0.5 text-terminal-label">{frame.label}</td>
       <td className="px-2 py-0.5">{frame.data.map((b) => b.toString(16).toUpperCase().padStart(2, "0")).join(" ")}</td>
       <td className="px-2 py-0.5">{frame.dlc}</td>
@@ -195,6 +270,7 @@ export function CanCommandPage() {
   const [frames, setFrames] = useState<FrameEntry[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const monitorRef = useRef<HTMLDivElement>(null);
+  const frameLabels = useFrameLabels();
 
   const addFrame = useCallback((frame: FrameEntry) => {
     setFrames((prev) => [...prev.slice(-500), frame]);
@@ -207,6 +283,13 @@ export function CanCommandPage() {
   }, [frames, autoScroll]);
 
   const monitorActiveRef = useRef(false);
+
+  // Initialize on mount: if CAN already connected, start monitor immediately
+  useEffect(() => {
+    CANCommandService.StartMonitor().then(() => {
+      monitorActiveRef.current = true;
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -228,9 +311,9 @@ export function CanCommandPage() {
   });
 
   useWailsEvent<any>("can:frame", (ev) => {
-    const label = FRAME_LABELS[ev.id] || "";
+    const label = frameLabels[ev.id] || "";
     addFrame({
-      id: frameIdCounter++, data: ev.data || [], dlc: ev.dlc || 0,
+      id: frameIdCounter++, canId: ev.id, data: ev.data || [], dlc: ev.dlc || 0,
       isTX: ev.isTx || false, label,
       timestamp: msTimestamp(),
     });

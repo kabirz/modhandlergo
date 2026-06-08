@@ -12,6 +12,13 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 /**
+ * GetChannel returns the current CAN channel, or -1 if not connected.
+ */
+export function GetChannel(): $CancellablePromise<number> {
+    return $Call.ByID(2401190455);
+}
+
+/**
  * SendFrame sends a CAN frame.
  */
 export function SendFrame(canID: number, data: string, dlc: number, isExtended: boolean, isRemote: boolean): $CancellablePromise<void> {

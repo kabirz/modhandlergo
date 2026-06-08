@@ -22,6 +22,7 @@ type Manager struct {
 
 	onLog      func(string)
 	onProgress func(int)
+	onFrame    func(uint32, [8]byte, uint8)
 }
 
 // New creates a new CAN Manager.
@@ -43,6 +44,11 @@ func (m *Manager) SetProgressCallback(cb func(int)) {
 	m.onProgress = cb
 }
 
+// SetFrameCallback sets the callback for sent TX frames.
+func (m *Manager) SetFrameCallback(cb func(uint32, [8]byte, uint8)) {
+	m.onFrame = cb
+}
+
 func (m *Manager) log(msg string) {
 	if m.onLog != nil {
 		m.onLog(msg)
@@ -62,7 +68,13 @@ func (m *Manager) SendCommand(cmd uint32, param uint32) error {
 		Data:  data,
 		Flags: canhal.FlagStandard,
 	}
-	return m.backend.Write(frame)
+	if err := m.backend.Write(frame); err != nil {
+		return err
+	}
+	if m.onFrame != nil {
+		m.onFrame(PlatformRx, data, 8)
+	}
+	return nil
 }
 
 // SendData implements upgrade.Transport for CAN.
@@ -76,7 +88,13 @@ func (m *Manager) SendData(data []byte) error {
 		Data:  frameData,
 		Flags: canhal.FlagStandard,
 	}
-	return m.backend.Write(frame)
+	if err := m.backend.Write(frame); err != nil {
+		return err
+	}
+	if m.onFrame != nil {
+		m.onFrame(FWDataRx, frameData, 8)
+	}
+	return nil
 }
 
 // WaitForResponse implements upgrade.Transport for CAN.

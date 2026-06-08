@@ -37,10 +37,24 @@ export function CreateManager(): $CancellablePromise<canmanager$0.Manager | null
 }
 
 /**
+ * GetConnectedChannel returns the currently connected CAN channel, or -1.
+ */
+export function GetConnectedChannel(): $CancellablePromise<number> {
+    return $Call.ByID(968509916);
+}
+
+/**
  * SetAdapterType switches the CAN adapter. Must be called when disconnected.
  */
 export function SetAdapterType(adapterType: number): $CancellablePromise<void> {
     return $Call.ByID(2042091289, adapterType);
+}
+
+/**
+ * SetConnectedChannel stores the currently connected CAN channel.
+ */
+export function SetConnectedChannel(ch: number): $CancellablePromise<void> {
+    return $Call.ByID(25497464, ch);
 }
 
 // Private type creation functions

@@ -78,6 +78,7 @@ func (s *CANUpgradeService) ConnectCAN(channel int, baudIndex int) error {
 	if err := mgr.Connect(channel, canhal.BaudRate(baudIndex)); err != nil {
 		return err
 	}
+	s.common.SetConnectedChannel(channel)
 	// Notify other pages (e.g. CAN Command) about the new CAN connection
 	if s.app != nil {
 		s.app.Event.Emit("can:connected", channel)
@@ -166,6 +167,22 @@ func (s *CANUpgradeService) UARTBoardReboot() error {
 func (s *CANUpgradeService) ensureCANManager() *canmanager.Manager {
 	if s.canMgr == nil {
 		s.canMgr = s.common.CreateManager()
+		if s.canMgr != nil {
+			s.canMgr.SetFrameCallback(func(id uint32, data [8]byte, dlc uint8) {
+				if s.app != nil {
+					d := make([]int, dlc)
+					for i := uint8(0); i < dlc; i++ {
+						d[i] = int(data[i])
+					}
+					s.app.Event.Emit("can:frame", map[string]interface{}{
+						"id":   id,
+						"data": d,
+						"dlc":  int(dlc),
+						"isTx": true,
+					})
+				}
+			})
+		}
 	}
 	return s.canMgr
 }

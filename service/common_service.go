@@ -19,6 +19,7 @@ type CommonService struct {
 	backend     canhal.Backend
 	dispatcher  *candispatcher.Dispatcher
 	adapterType canhal.Adapter
+	channel     int
 }
 
 // NewCommonService creates the common service with default adapter.
@@ -70,6 +71,20 @@ func (s *CommonService) SetAdapterType(adapterType int) error {
 	s.dispatcher = dispatcher
 
 	return nil
+}
+
+// SetConnectedChannel stores the currently connected CAN channel.
+func (s *CommonService) SetConnectedChannel(ch int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.channel = ch
+}
+
+// GetConnectedChannel returns the currently connected CAN channel, or -1.
+func (s *CommonService) GetConnectedChannel() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.channel
 }
 
 // CreateManager creates a new CAN Manager using the shared backend.

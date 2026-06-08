@@ -13,3 +13,5 @@ reasonix.toml
 build/windows/msix/test_cert.pfx
 build/windows/msix/test_cert.cer
 build/windows/msix/staging/
+*.bin
+*.pyc

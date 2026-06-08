@@ -13,15 +13,16 @@ import (
 // CANCommandService provides CAN frame send/receive, bus monitoring,
 // and LoRa remote configuration via CAN (0x105/0x106).
 type CANCommandService struct {
-	app    *application.App
-	common *CommonService
-	cmd    *cancommand.Command
-	canMgr *canmanager.Manager
+	app     *application.App
+	common  *CommonService
+	cmd     *cancommand.Command
+	canMgr  *canmanager.Manager
+	channel int
 }
 
 // NewCANCommandService creates a new CAN command service.
 func NewCANCommandService(common *CommonService) *CANCommandService {
-	return &CANCommandService{common: common}
+	return &CANCommandService{common: common, channel: -1}
 }
 
 // ServiceStartup is called when the Wails app starts.
@@ -32,7 +33,17 @@ func (s *CANCommandService) ServiceStartup(ctx context.Context, opts application
 	if s.cmd != nil {
 		s.cmd.SetFrameCallback(func(ev cancommand.FrameEvent) {
 			if s.app != nil {
-				s.app.Event.Emit("can:frame", ev)
+				// Convert []byte to []int to avoid base64 encoding in JSON
+				data := make([]int, len(ev.Data))
+				for i, b := range ev.Data {
+					data[i] = int(b)
+				}
+				s.app.Event.Emit("can:frame", map[string]interface{}{
+					"id":   ev.ID,
+					"data": data,
+					"dlc":  ev.DLC,
+					"isTx": ev.IsTX,
+				})
 			}
 		})
 	}
@@ -45,6 +56,7 @@ func (s *CANCommandService) ServiceStartup(ctx context.Context, opts application
 
 // SetChannel syncs the CAN channel from the firmware upgrade page.
 func (s *CANCommandService) SetChannel(channel int) {
+	s.channel = channel
 	if s.cmd != nil {
 		s.cmd.SetChannel(channel)
 	}
@@ -53,11 +65,32 @@ func (s *CANCommandService) SetChannel(channel int) {
 	}
 }
 
+// GetChannel returns the current CAN channel, or -1 if not connected.
+func (s *CANCommandService) GetChannel() int {
+	if s.channel >= 0 {
+		return s.channel
+	}
+	if s.common != nil {
+		return s.common.GetConnectedChannel()
+	}
+	return -1
+}
+
+// ensureChannel auto-initializes channel from shared state if not yet set.
+func (s *CANCommandService) ensureChannel() {
+	if s.channel < 0 && s.common != nil {
+		if ch := s.common.GetConnectedChannel(); ch >= 0 {
+			s.SetChannel(ch)
+		}
+	}
+}
+
 // SendFrame sends a CAN frame.
 func (s *CANCommandService) SendFrame(canID uint32, data []byte, dlc int, isExtended, isRemote bool) error {
 	if s.cmd == nil {
 		return fmt.Errorf("CAN command module not initialized")
 	}
+	s.ensureChannel()
 	return s.cmd.SendFrame(canID, data, dlc, isExtended, isRemote)
 }
 
@@ -65,6 +98,12 @@ func (s *CANCommandService) SendFrame(canID uint32, data []byte, dlc int, isExte
 func (s *CANCommandService) StartMonitor() error {
 	if s.cmd == nil {
 		return fmt.Errorf("CAN command module not initialized")
+	}
+	// Auto-initialize channel from shared state if not yet set
+	if s.channel < 0 && s.common != nil {
+		if ch := s.common.GetConnectedChannel(); ch >= 0 {
+			s.SetChannel(ch)
+		}
 	}
 	s.cmd.StartMonitor()
 	return nil
@@ -86,9 +125,12 @@ func (s *CANCommandService) SendLoraCommand(cmd int, dataHex string) error {
 	if s.cmd == nil {
 		return fmt.Errorf("CAN command module not initialized")
 	}
+	s.ensureChannel()
 	dataBytes := parseHexBytes(dataHex)
-	payload := append([]byte{byte(cmd)}, dataBytes...)
-	return s.cmd.SendFrame(0x105, payload, len(payload), false, false)
+	var frameData [8]byte
+	frameData[0] = byte(cmd)
+	copy(frameData[1:], dataBytes)
+	return s.cmd.SendFrame(0x105, frameData[:], 8, false, false)
 }
 
 // parseHexBytes converts a hex string like "010203" to []byte.
