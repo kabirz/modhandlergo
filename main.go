@@ -48,6 +48,9 @@ func init() {
 	application.RegisterEvent[string]("gateway:sim:log")
 	application.RegisterEvent[bool]("gateway:sim:status")
 	application.RegisterEvent[bool]("gateway:sim:client")
+	application.RegisterEvent[string]("terminal:data")
+	application.RegisterEvent[bool]("terminal:status")
+	application.RegisterEvent[string]("terminal:error")
 }
 
 func main() {
@@ -65,6 +68,7 @@ func main() {
 	canCommandSvc := service.NewCANCommandService(commonSvc)
 	simulatorSvc := service.NewSimulatorService(commonSvc)
 	gatewaySimSvc := service.NewGatewaySimService()
+	terminalSvc := service.NewTerminalService()
 
 	app := application.New(application.Options{
 		Name:        "激光测距工具",
@@ -77,6 +81,7 @@ func main() {
 			application.NewService(canCommandSvc),
 			application.NewService(simulatorSvc),
 			application.NewService(gatewaySimSvc),
+			application.NewService(terminalSvc),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

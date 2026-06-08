@@ -8,6 +8,7 @@ import * as GatewaySimService from "./gatewaysimservice.js";
 import * as LoRaConfigService from "./loraconfigservice.js";
 import * as LoRaDataService from "./loradataservice.js";
 import * as SimulatorService from "./simulatorservice.js";
+import * as TerminalService from "./terminalservice.js";
 export {
     CANCommandService,
     CANUpgradeService,
@@ -15,7 +16,8 @@ export {
     GatewaySimService,
     LoRaConfigService,
     LoRaDataService,
-    SimulatorService
+    SimulatorService,
+    TerminalService
 };
 
 export {

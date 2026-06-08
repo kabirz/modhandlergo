@@ -8,8 +8,9 @@ import { FirmwareUpgradePage } from "@/pages/FirmwareUpgradePage";
 import { CanCommandPage } from "@/pages/CanCommandPage";
 import { SimulatorPage } from "@/pages/SimulatorPage";
 import { GatewaySimPage } from "@/pages/GatewaySimPage";
+import { TerminalPage } from "@/pages/TerminalPage";
 
-const pageIds = ["lora-data", "lora-config", "firmware", "can-command", "simulator", "gateway-sim"] as const;
+const pageIds = ["lora-data", "lora-config", "firmware", "can-command", "simulator", "gateway-sim", "terminal"] as const;
 type PageId = (typeof pageIds)[number];
 
 type ThemeMode = "light" | "dark";
@@ -122,6 +123,7 @@ function App() {
           <div style={{ display: activePage === "can-command" ? "contents" : "none" }}><CanCommandPage /></div>
           <div style={{ display: activePage === "simulator" ? "contents" : "none" }}><SimulatorPage canConnected={canConnected} /></div>
           <div style={{ display: activePage === "gateway-sim" ? "contents" : "none" }}><GatewaySimPage /></div>
+          <div style={{ display: activePage === "terminal" ? "contents" : "none" }}><TerminalPage /></div>
         </div>
       </main>
     </div>

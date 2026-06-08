@@ -153,6 +153,26 @@ const dict: Record<string, Record<Lang, string>> = {
   "sim.noLog":            { zh: "暂无日志",       en: "No log output" },
   "sim.connectFirst":     { zh: "请先连接CAN",    en: "Connect CAN first" },
 
+  // Terminal
+  "nav.terminal":             { zh: "终端",         en: "Terminal" },
+  "terminal.host":            { zh: "主机",         en: "Host" },
+  "terminal.transport":       { zh: "连接方式",     en: "Transport" },
+  "terminal.connect":         { zh: "连接",         en: "Connect" },
+  "terminal.disconnect":      { zh: "断开",         en: "Disconnect" },
+  "terminal.port":            { zh: "端口",         en: "Port" },
+  "terminal.baud":            { zh: "波特率",       en: "Baud Rate" },
+  "terminal.noPorts":         { zh: "无串口",       en: "No serial ports" },
+  "terminal.connected":       { zh: "已连接",       en: "Connected" },
+  "terminal.disconnected":    { zh: "未连接",       en: "Disconnected" },
+  "terminal.output":          { zh: "终端输出",     en: "Terminal Output" },
+  "terminal.rawMode":         { zh: "原始模式（逐字符发送）", en: "Raw mode (char-by-char)" },
+  "terminal.localEcho":       { zh: "本地回显",     en: "Local Echo" },
+  "terminal.clear":           { zh: "清除",         en: "Clear" },
+  "terminal.waitData":        { zh: "等待数据...",   en: "Waiting for data..." },
+  "terminal.linePlaceholder": { zh: "输入命令，按 Enter 发送", en: "Type a command, Enter to send" },
+  "terminal.rawPlaceholder":  { zh: "逐字符发送中...", en: "Typing sends characters..." },
+  "terminal.notConnected":    { zh: "请先连接",     en: "Connect first" },
+
   // Gateway Simulator
   "nav.gatewaySim":       { zh: "网关模拟器",     en: "Gateway Sim" },
   "gw.config":            { zh: "网关配置",       en: "Gateway Config" },

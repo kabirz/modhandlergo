@@ -39,6 +39,9 @@ declare module "@wailsio/runtime" {
             "lora:upwid": string;
             "simulator:log": string;
             "simulator:status": boolean;
+            "terminal:data": string;
+            "terminal:error": string;
+            "terminal:status": boolean;
             "uart:log": string;
             "uart:progress": number;
         }

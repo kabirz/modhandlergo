@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import {
-  Radio, Settings, Upload, Terminal, Sun, Moon, Languages, Info, X, RefreshCw, Download, Check, Cpu, Router, type LucideIcon,
+  Radio, Settings, Upload, Terminal, Sun, Moon, Languages, Info, X, RefreshCw, Download, Check, Cpu, Router, Monitor, type LucideIcon,
 } from "lucide-react";
 
 interface NavItem { id: string; labelKey: string; icon: LucideIcon; }
@@ -12,6 +12,7 @@ const navItems: NavItem[] = [
   { id: "lora-config", labelKey: "nav.loraConfig", icon: Settings },
   { id: "firmware", labelKey: "nav.firmware", icon: Upload },
   { id: "can-command", labelKey: "nav.canCommand", icon: Terminal },
+  { id: "terminal", labelKey: "nav.terminal", icon: Monitor },
   { id: "simulator", labelKey: "nav.simulator", icon: Cpu },
   { id: "gateway-sim", labelKey: "nav.gatewaySim", icon: Router },
 ];
