@@ -50,6 +50,14 @@
 - 可配置 TCP/UDP 端口、NID、GWID
 - 客户端连接后才可操作，断开自动停止自动遥测
 
+### UART/TCP 终端
+- 串口/TCP 双协议终端（类似串口助手/Telnet）
+- RAW 模式逐字符发送，支持 Ctrl+字母、Backspace 等控制键
+- xterm.js 内核，完整 ANSI 转义序列支持（VT100 颜色/光标控制）
+- Dracula 主题配色
+- 无本地回显，所见即远端所发
+- 默认隐藏，按 Ctrl+Shift+P 切换
+
 ### 其他
 - 版本更新检查（启动自动检测 + 手动点击版本号）
 - 中英文完整国际化
@@ -152,22 +160,23 @@ ModHandlerGo/
 │   ├── upgrade/                     # 公共固件升级逻辑 (Transport 接口 + 状态机)
 │   ├── lorasdk/                     # LoRa SDK (TCP/UDP/Serial AT + 单元测试)
 │   └── loraservice/                 # Wails 事件桥接层
-├── service/                         # Wails 服务绑定层 (7 个)
+├── service/                         # Wails 服务绑定层 (8 个)
 │   ├── common_service.go            # 共享 CAN 基础设施 + notifyingBackend
 │   ├── can_upgrade_service.go       # 固件升级服务
 │   ├── can_command_service.go       # CAN 命令服务
 │   ├── simulator_service.go         # CAN 设备模拟器 (纯 Go)
 │   ├── gateway_sim_service.go       # LoRa 网关模拟器 (纯 Go, TCP+UDP)
 │   ├── lora_data_service.go         # LoRa 数据服务
-│   └── lora_config_service.go       # LoRa 配置服务
+│   ├── lora_config_service.go       # LoRa 配置服务
+│   └── terminal_service.go          # UART/TCP 终端 (xterm.js)
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx                  # 主布局 + 版本检查 + CAN 状态管理
-│   │   ├── lib/i18n.tsx             # 中英文翻译系统 (120+ 键)
+│   │   ├── lib/i18n.tsx             # 中英文翻译系统 (150+ 键)
 │   │   ├── hooks/useEvents.ts       # Wails 事件监听 hook
 │   │   ├── components/
 │   │   │   └── layout/sidebar.tsx   # 侧边栏 (导航+主题+语言+版本检查+关于)
-│   │   └── pages/                   # 6 个功能页面 (React.memo 优化)
+│   │   └── pages/                   # 7 个功能页面 (React.memo 优化)
 │   └── bindings/                    # Wails 自动生成的 TypeScript 绑定
 ├── build/                           # 构建配置 (NSIS/nfpm/图标)
 │   └── windows/
