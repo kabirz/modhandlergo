@@ -47,10 +47,30 @@ function App() {
   const [darkMode, setDarkMode] = useState<ThemeMode>(getInitialTheme);
   const [showUpdateOnStart, setShowUpdateOnStart] = useState(false);
   const [canConnected, setCanConnected] = useState(false);
+  const [showSimulators, setShowSimulators] = useState(false);
 
   // Listen for CAN connection state
   useWailsEvent<number>("can:connected", () => setCanConnected(true));
   useWailsEvent<any>("can:disconnected", () => setCanConnected(false));
+
+  // Ctrl+Shift+P toggles simulator visibility
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        setShowSimulators((prev) => {
+          const next = !prev;
+          // If hiding and current page is a simulator, navigate away
+          if (!next && (activePage === "simulator" || activePage === "gateway-sim")) {
+            setActivePage("lora-data");
+          }
+          return next;
+        });
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [activePage]);
 
   // Apply theme on mount and when it changes
   useEffect(() => {
@@ -91,6 +111,7 @@ function App() {
         onToggleTheme={toggleTheme}
         defaultShowUpdate={showUpdateOnStart}
         canConnected={canConnected}
+        showSimulators={showSimulators}
       />
       <main className="flex-1 overflow-hidden p-6">
         <div className="h-full overflow-y-auto">

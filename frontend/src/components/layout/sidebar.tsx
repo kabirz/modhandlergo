@@ -25,6 +25,7 @@ interface SidebarProps {
   onToggleTheme: () => void;
   defaultShowUpdate?: boolean;
   canConnected?: boolean;
+  showSimulators?: boolean;
 }
 
 function AboutDialog({ onClose }: { onClose: () => void }) {
@@ -214,7 +215,7 @@ function UpdateCheckDialog({ onClose, autoCheck = false }: { onClose: () => void
   );
 }
 
-export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme, defaultShowUpdate = false, canConnected = false }: SidebarProps) {
+export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme, defaultShowUpdate = false, canConnected = false, showSimulators = false }: SidebarProps) {
   const { lang, setLang, t } = useI18n();
   const [showAbout, setShowAbout] = useState(false);
   const [showUpdate, setShowUpdate] = useState(defaultShowUpdate);
@@ -226,7 +227,10 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme, defau
       <aside className="w-[200px] min-w-[200px] h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-colors duration-300">
         {/* Navigation */}
         <nav className="flex-1 py-2 px-2 space-y-1">
-          {navItems.map((item) => {
+          {navItems.filter((item) => {
+            if (item.id === "simulator" || item.id === "gateway-sim") return showSimulators;
+            return true;
+          }).map((item) => {
             const Icon = item.icon;
             const isActive = activePage === item.id;
             const isDisabled = (item.id === "can-command" || item.id === "simulator") && !canConnected;
