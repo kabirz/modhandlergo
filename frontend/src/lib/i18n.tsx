@@ -136,6 +136,23 @@ const dict: Record<string, Record<Lang, string>> = {
   "can.coordZ":       { zh: "Z坐标",        en: "Z Coord" },
   "can.heartbeat":    { zh: "心跳",         en: "Heartbeat" },
 
+  // Simulator
+  "nav.simulator":        { zh: "设备模拟器",     en: "Simulator" },
+  "sim.config":           { zh: "模拟器配置",     en: "Simulator Config" },
+  "sim.channel":          { zh: "CAN通道",        en: "CAN Channel" },
+  "sim.version":          { zh: "固件版本",       en: "Firmware Version" },
+  "sim.handlerInterval":  { zh: "手柄间隔",       en: "Handler Interval" },
+  "sim.disableHeartbeat": { zh: "禁用心跳",       en: "Disable Heartbeat" },
+  "sim.disableHandler":   { zh: "禁用手柄",       en: "Disable Handler" },
+  "sim.control":          { zh: "控制",           en: "Control" },
+  "sim.running":          { zh: "运行中",         en: "Running" },
+  "sim.stopped":          { zh: "已停止",         en: "Stopped" },
+  "sim.start":            { zh: "启动",           en: "Start" },
+  "sim.stop":             { zh: "停止",           en: "Stop" },
+  "sim.log":              { zh: "日志输出",       en: "Log Output" },
+  "sim.noLog":            { zh: "暂无日志",       en: "No log output" },
+  "sim.connectFirst":     { zh: "请先连接CAN",    en: "Connect CAN first" },
+
   // About dialog
   "about.title":       { zh: "关于",         en: "About" },
   "about.appName":     { zh: "应用名称",     en: "App Name" },

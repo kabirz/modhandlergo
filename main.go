@@ -43,6 +43,8 @@ func init() {
 	application.RegisterEvent[map[string]interface{}]("can:frame")
 	application.RegisterEvent[int]("can:connected")
 	application.RegisterEvent[any]("can:disconnected")
+	application.RegisterEvent[string]("simulator:log")
+	application.RegisterEvent[bool]("simulator:status")
 }
 
 func main() {
@@ -58,6 +60,7 @@ func main() {
 	loraConfigSvc := service.NewLoRaConfigService(loraSDK)
 	canUpgradeSvc := service.NewCANUpgradeService(commonSvc)
 	canCommandSvc := service.NewCANCommandService(commonSvc)
+	simulatorSvc := service.NewSimulatorService(commonSvc)
 
 	app := application.New(application.Options{
 		Name:        "激光测距工具",
@@ -68,6 +71,7 @@ func main() {
 			application.NewService(loraConfigSvc),
 			application.NewService(canUpgradeSvc),
 			application.NewService(canCommandSvc),
+			application.NewService(simulatorSvc),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

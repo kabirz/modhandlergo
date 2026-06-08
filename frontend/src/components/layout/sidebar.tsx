@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import {
-  Radio, Settings, Upload, Terminal, Sun, Moon, Languages, Info, X, RefreshCw, Download, Check, type LucideIcon,
+  Radio, Settings, Upload, Terminal, Sun, Moon, Languages, Info, X, RefreshCw, Download, Check, Cpu, type LucideIcon,
 } from "lucide-react";
 
 interface NavItem { id: string; labelKey: string; icon: LucideIcon; }
@@ -12,6 +12,7 @@ const navItems: NavItem[] = [
   { id: "lora-config", labelKey: "nav.loraConfig", icon: Settings },
   { id: "firmware", labelKey: "nav.firmware", icon: Upload },
   { id: "can-command", labelKey: "nav.canCommand", icon: Terminal },
+  { id: "simulator", labelKey: "nav.simulator", icon: Cpu },
 ];
 
 export const APP_VERSION = "0.2.1";
@@ -227,7 +228,7 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme, defau
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activePage === item.id;
-            const isDisabled = item.id === "can-command" && !canConnected;
+            const isDisabled = (item.id === "can-command" || item.id === "simulator") && !canConnected;
             return (
               <button
                 key={item.id}

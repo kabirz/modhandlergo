@@ -6,8 +6,9 @@ import { LoRaDataPage } from "@/pages/LoRaDataPage";
 import { LoRaConfigPage } from "@/pages/LoRaConfigPage";
 import { FirmwareUpgradePage } from "@/pages/FirmwareUpgradePage";
 import { CanCommandPage } from "@/pages/CanCommandPage";
+import { SimulatorPage } from "@/pages/SimulatorPage";
 
-const pageIds = ["lora-data", "lora-config", "firmware", "can-command"] as const;
+const pageIds = ["lora-data", "lora-config", "firmware", "can-command", "simulator"] as const;
 type PageId = (typeof pageIds)[number];
 
 type ThemeMode = "light" | "dark";
@@ -97,6 +98,7 @@ function App() {
           <div style={{ display: activePage === "lora-config" ? "contents" : "none" }}><LoRaConfigPage /></div>
           <div style={{ display: activePage === "firmware" ? "contents" : "none" }}><FirmwareUpgradePage /></div>
           <div style={{ display: activePage === "can-command" ? "contents" : "none" }}><CanCommandPage /></div>
+          <div style={{ display: activePage === "simulator" ? "contents" : "none" }}><SimulatorPage canConnected={canConnected} /></div>
         </div>
       </main>
     </div>

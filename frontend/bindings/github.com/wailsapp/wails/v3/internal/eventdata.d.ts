@@ -34,6 +34,8 @@ declare module "@wailsio/runtime" {
             "lora:spd": string;
             "lora:ttmode": string;
             "lora:upwid": string;
+            "simulator:log": string;
+            "simulator:status": boolean;
             "uart:log": string;
             "uart:progress": number;
         }

@@ -9,12 +9,11 @@ CAN Device Simulator
   - LoRa 远程配参 (0x105/0x106)
   - 心跳 (0x763)
   - 手柄状态 (0x1E3)
-  - 扫描仪数据 (0x263/0x363/0x463)
 
 Usage:
   python can_upgrade_sim.py [--channel vcan0] [--version 0.1.2.3]
-    [--no-heartbeat] [--no-handler] [--no-scanner]
-    [--handler-interval 0.1] [--scanner-interval 0.5]
+    [--no-heartbeat] [--no-handler]
+    [--handler-interval 0.1]
 
 依赖: pip install python-can tqdm
 """
@@ -48,9 +47,6 @@ PLATFORM_TX     = 0x102   # Device → Platform: 响应帧
 FW_DATA_RX      = 0x103   # Platform → Device: 固件数据
 COBID_HEATBEAT  = 0x763   # Device → Platform: 心跳
 HANDLER_STATE   = 0x1E3   # Device → Platform: 手柄状态
-OVERBREAK_LASER = 0x263   # Platform → Device: 超欠挖 + 激光测距
-COORD_XY        = 0x363   # Platform → Device: X/Y 坐标
-COORD_Z         = 0x463   # Platform → Device: Z 坐标
 LORA_CONFIG_RX  = 0x105   # Platform → Device: LoRa 配参命令
 LORA_CONFIG_TX  = 0x106   # Device → Platform: LoRa 配参响应
 
@@ -60,9 +56,6 @@ FRAME_ID_NAMES = {
     FW_DATA_RX:      "FW_DATA_RX",
     COBID_HEATBEAT:  "HEARTBEAT",
     HANDLER_STATE:   "HANDLER_STATE",
-    OVERBREAK_LASER: "OVERBREAK_LASER",
-    COORD_XY:        "COORD_XY",
-    COORD_Z:         "COORD_Z",
     LORA_CONFIG_RX:  "LORA_CONFIG",
     LORA_CONFIG_TX:  "LORA_CONFIG_RESP",
 }
@@ -172,15 +165,15 @@ class LoraState:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self.prot = 1          # 网络协议类型 (1=组网)
-        self.mode = 0          # 工作模式 (0=广播透传)
-        self.spd1 = 2          # 通道1 速率
-        self.ch1 = 4300       # 通道1 频率 (430.0MHz, 单位100KHz, 100的倍数)
-        self.spd2 = 2          # 通道2 速率
-        self.ch2 = 4700       # 通道2 频率 (470.0MHz, 单位100KHz, 100的倍数)
-        self.pnum = 1          # 通道选择 (通道1)
-        self.nid = 0x00000001  # 节点 ID
-        self.gwid = 0x00000001 # 网关 ID
+        self.prot = 1          # 网络协议类型 (1=LG210)
+        self.mode = 2          # 工作模式 (2=NET)
+        self.spd1 = 7          # 通道1 速率
+        self.ch1 = 4700       # 通道1 频率 (470.0MHz, 单位100KHz)
+        self.spd2 = 7          # 通道2 速率
+        self.ch2 = 4800       # 通道2 频率 (480.0MHz, 单位100KHz)
+        self.pnum = 0          # 通道选择
+        self.nid = 0x01020304  # 节点 ID
+        self.gwid = 0x11223344 # 网关 ID
         self.test_mode = False # 测试模式
         self.power_on = True   # LoRa 电源状态
 
@@ -340,46 +333,6 @@ def handler_state_thread(bus: can.Bus, stop_event: threading.Event, interval: fl
         stop_event.wait(interval)
 
 
-def scanner_thread(bus: can.Bus, stop_event: threading.Event, interval: float):
-    """周期发送扫描仪数据 (0x263/0x363/0x463)
-    0x263: flags + overbreak(int16 BE) + laser(uint32 BE)
-    0x363: coordX(int32 BE) + coordY(int32 BE)
-    0x463: coordZ(int32 BE) + valid flag
-    """
-    t = 0.0
-    while not stop_event.is_set():
-        # ── 0x263 超欠挖 + 激光测距 ──
-        overbreak = int(math.sin(t * 0.2) * 500)
-        laser = int(10000 + math.cos(t * 0.1) * 5000)
-
-        ob_data = bytearray(8)
-        ob_data[0] = 0x03  # bit0=overbreak_valid, bit1=laser_valid
-        ob_data[1] = 0x00
-        struct.pack_into(">h", ob_data, 2, overbreak)
-        struct.pack_into(">I", ob_data, 4, laser)
-        send_can(bus, OVERBREAK_LASER, bytes(ob_data))
-
-        # ── 0x363 X/Y 坐标 ──
-        cx = int(100000 + math.sin(t * 0.15) * 50000)
-        cy = int(200000 + math.cos(t * 0.12) * 30000)
-
-        xy_data = bytearray(8)
-        struct.pack_into(">i", xy_data, 0, cx)
-        struct.pack_into(">i", xy_data, 4, cy)
-        send_can(bus, COORD_XY, bytes(xy_data))
-
-        # ── 0x463 Z 坐标 ──
-        cz = int(5000 + math.sin(t * 0.08) * 2000)
-
-        z_data = bytearray(8)
-        struct.pack_into(">i", z_data, 0, cz)
-        z_data[4] = 0x01  # coordz_valid
-        send_can(bus, COORD_Z, bytes(z_data))
-
-        t += interval
-        stop_event.wait(interval)
-
-
 # ════════════════════════════════════════════════════════════════
 # Main Simulator
 # ════════════════════════════════════════════════════════════════
@@ -391,11 +344,19 @@ def run_simulator(args):
     print(f"  Simulated version: {format_version(args.version)} (0x{args.version:08X})")
     print()
 
+    if sys.platform == "win32":
+        can_iface = "pcan"
+    else:
+        can_iface = "socketcan"
+
     try:
-        bus = can.Bus(interface="socketcan", channel=args.channel, receive_own_messages=False)
+        bus = can.Bus(interface=can_iface, channel=args.channel, receive_own_messages=False)
     except OSError as e:
         print(f"Error: Cannot open {args.channel}: {e}")
-        print(f"Hint: sudo ip link add dev {args.channel} type vcan && sudo ip link set {args.channel} up")
+        if sys.platform == "win32":
+            print("Hint: Ensure PCAN drivers are installed and device is connected")
+        else:
+            print(f"Hint: sudo ip link add dev {args.channel} type vcan && sudo ip link set {args.channel} up")
         sys.exit(1)
 
     print(f"  Listening on {args.channel}...")
@@ -417,12 +378,6 @@ def run_simulator(args):
         t.start()
         threads.append(t)
         print(f"  [+] Handler state (0x1E3) every {args.handler_interval}s")
-
-    if not args.no_scanner:
-        t = threading.Thread(target=scanner_thread, args=(bus, stop_event, args.scanner_interval), daemon=True, name="scanner")
-        t.start()
-        threads.append(t)
-        print(f"  [+] Scanner data (0x263/0x363/0x463) every {args.scanner_interval}s")
 
     print("\n  Waiting for commands...\n")
 
@@ -551,17 +506,15 @@ def run_simulator(args):
 
 
 def main():
+    default_channel = "PCAN_USBBUS1" if sys.platform == "win32" else "vcan0"
     parser = argparse.ArgumentParser(description="CAN Device Simulator")
-    parser.add_argument("--channel", default="vcan0", help="CAN channel (default: vcan0)")
+    parser.add_argument("--channel", default=default_channel, help=f"CAN channel (default: {default_channel})")
     parser.add_argument("--version", default="0x00010203",
                         help="Simulated firmware version as hex (default: 0x00010203)")
     parser.add_argument("--no-heartbeat", action="store_true", help="Disable heartbeat sending")
     parser.add_argument("--no-handler", action="store_true", help="Disable handler state sending")
-    parser.add_argument("--no-scanner", action="store_true", help="Disable scanner data sending")
     parser.add_argument("--handler-interval", type=float, default=0.1,
                         help="Handler state send interval in seconds (default: 0.1)")
-    parser.add_argument("--scanner-interval", type=float, default=0.5,
-                        help="Scanner data send interval in seconds (default: 0.5)")
     args = parser.parse_args()
 
     try:
