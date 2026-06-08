@@ -473,32 +473,28 @@ class GatewayUDPServer:
         while self.running:
             try:
                 if has_recvmsg:
-                    # recvmsg_into is Python 3.9+, not available on Windows
+                    # recvmsg_into returns (nbytes, ancdata, msg_flags, address)
                     _fn = getattr(sock, "recvmsg_into", None)
                     if _fn is not None:
-                        nbytes, addr, _flags, cmsg = _fn(buf, len(buf), cmsg_buf, len(cmsg_buf))
+                        nbytes, ancdata, _, addr = _fn([buf], 1024, 0)
                     else:
                         nbytes, addr = sock.recvfrom_into(buf, len(buf))
-                        cmsg = None
+                        ancdata = None
                 else:
-                    # Windows: use getsockopt IP_RECVDSTADDR to get destination IP
                     nbytes, addr = sock.recvfrom_into(buf, len(buf))
-                    cmsg = None
+                    ancdata = None
             except (socket.timeout, OSError):
                 continue
-            except Exception:
-                break
 
             # Determine which local interface received this packet
             dst_ip = None
-            if cmsg:
-                # Linux/macOS: parse IP_PKTINFO cmsg
-                for c_level, c_type, c_data in cmsg:
+            if ancdata:
+                for c_level, c_type, c_data in ancdata:
                     if c_level == socket.IPPROTO_IP and c_type == socket.IP_PKTINFO:
                         dst_ip = socket.inet_ntoa(c_data[4:8])
                         break
 
-            # Windows / fallback: find local IP on the same subnet as source
+            # Fallback: find local IP on the same subnet as source
             if not dst_ip and addr:
                 src_ip = addr[0]
                 for local_ip in self.local_ips:

@@ -104,6 +104,10 @@ const dict: Record<string, Record<Lang, string>> = {
   "fw.waitOp":        { zh: "等待操作...",   en: "Waiting..." },
   "fw.selectFile":    { zh: "选择固件文件 (.bin)", en: "Select firmware file (.bin)" },
   "fw.pleaseSelect":  { zh: "请先选择固件文件", en: "Please select a firmware file first" },
+  "fw.upgradeDone":  { zh: "固件上传完成，请点击重启板卡完成升级", en: "Firmware uploaded. Click Reboot Board to complete the upgrade." },
+  "fw.rebootConfirm":{ zh: "确认重启板卡？", en: "Confirm reboot board?" },
+  "fw.ok":            { zh: "确定", en: "OK" },
+  "fw.cancel":        { zh: "取消", en: "Cancel" },
 
   // CAN Command
   "can.frameConfig":  { zh: "帧配置",       en: "Frame Config" },

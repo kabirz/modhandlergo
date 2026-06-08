@@ -188,7 +188,6 @@ func (m *Manager) GetFirmwareVersion() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	m.log(fmt.Sprintf("Firmware version: %s", upgrade.FormatVersion(version)))
 	return version, nil
 }
 

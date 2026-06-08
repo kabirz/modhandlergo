@@ -28,6 +28,12 @@ type Dispatcher struct {
 	waitID uint32
 	waitMu sync.Mutex
 
+	// Pending buffer: holds one frame when no waiter is armed yet.
+	// Fixes race on vcan/loopback where response arrives before WaitFrame is called.
+	pending    *canhal.Frame
+	pendingID  uint32
+	pendingMu  sync.Mutex
+
 	running atomic.Bool
 
 	// Pool for reusing subscriber callback slices in readLoop.
@@ -91,10 +97,21 @@ func (d *Dispatcher) Subscribe(cb func(*canhal.Frame)) func() {
 // WaitFrame blocks until a frame with the expected ID arrives or timeout.
 // Used by the firmware upgrade protocol for request/response.
 func (d *Dispatcher) WaitFrame(expectedID uint32, timeout time.Duration) (*canhal.Frame, error) {
-	// Arm waiter before sending command.
+	// Check pending buffer first (response arrived before we started waiting).
+	d.pendingMu.Lock()
+	if d.pending != nil && d.pendingID == expectedID {
+		frame := d.pending
+		d.pending = nil
+		d.pendingID = 0
+		d.pendingMu.Unlock()
+		return frame, nil
+	}
+	d.pendingMu.Unlock()
+
+	// Arm waiter.
 	d.waitMu.Lock()
 	d.waitID = expectedID
-	// Drain any stale frame
+	// Drain any stale frame from channel.
 	select {
 	case <-d.waitCh:
 	default:
@@ -140,6 +157,14 @@ func (d *Dispatcher) readLoop(ctx context.Context) {
 			}
 		} else {
 			d.waitMu.Unlock()
+			// No waiter armed — buffer one frame for late WaitFrame calls.
+			// Only buffer if it matches a typical response ID (0x102 PlatformTx).
+			d.pendingMu.Lock()
+			if d.pending == nil {
+				d.pending = frame
+				d.pendingID = frame.ID
+			}
+			d.pendingMu.Unlock()
 		}
 
 		// 2. Fan out to all async subscribers (copy under RLock, invoke outside)

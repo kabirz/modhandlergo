@@ -94,15 +94,16 @@ func RunUpgrade(t Transport, filePath string, testMode bool, padByte byte, cb *C
 
 	// Step 3: Send firmware data 8 bytes at a time
 	var bytesSent int64
+	var lastPct int
 	dataBuf := make([]byte, 8)
 	transferComplete := false
 
 	for {
 		n, readErr := f.Read(dataBuf)
-		if n == 0 || readErr == io.EOF {
+		if n == 0 {
 			break
 		}
-		if readErr != nil {
+		if readErr != nil && readErr != io.EOF {
 			return fmt.Errorf("read firmware file failed: %w", readErr)
 		}
 
@@ -119,7 +120,10 @@ func RunUpgrade(t Transport, filePath string, testMode bool, padByte byte, cb *C
 
 		// Every 64 bytes or at end, check acknowledgment
 		if bytesSent%64 == 0 || bytesSent >= fileSize {
-			cb.progress(int(bytesSent * 100 / fileSize))
+			if pct := int(bytesSent * 100 / fileSize); pct != lastPct {
+				cb.progress(pct)
+				lastPct = pct
+			}
 
 			code, _, err := t.WaitForResponse(5 * time.Second)
 			if err != nil {

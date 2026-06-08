@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { Upload, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -41,6 +42,10 @@ export function FirmwareUpgradePage() {
   const logRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef(channel);
   channelRef.current = channel;
+
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState<{ type: "alert" | "confirm"; title: string; message: string; onConfirm?: () => void }>({ type: "alert", title: "", message: "" });
 
   const addLog = useCallback((msg: string) => {
     setLogs((prev) => [...prev.slice(-200), { id: logIdCounter++, text: msg }]);
@@ -106,6 +111,8 @@ export function FirmwareUpgradePage() {
       } else {
         await CANUpgradeService.UARTFirmwareUpgrade(firmwarePath, false);
       }
+      setDialogConfig({ type: "alert", title: t("fw.startUpgrade"), message: t("fw.upgradeDone") });
+      setDialogOpen(true);
     } catch (err: any) {
       addLog(`[${msTimestamp()}] Error: ${err.message || err}`);
     }
@@ -126,17 +133,26 @@ export function FirmwareUpgradePage() {
     }
   };
 
-  const handleReboot = async () => {
-    try {
-      if (channel === "can") {
-        await CANUpgradeService.CANBoardReboot();
-      } else {
-        await CANUpgradeService.UARTBoardReboot();
-      }
-      addLog(`[${msTimestamp()}] Reboot command sent`);
-    } catch (err: any) {
-      addLog(`[${msTimestamp()}] Error: ${err.message || err}`);
-    }
+  const handleReboot = () => {
+    setDialogConfig({
+      type: "confirm",
+      title: t("fw.reboot"),
+      message: t("fw.rebootConfirm"),
+      onConfirm: async () => {
+        try {
+          setProgress(0);
+          if (channel === "can") {
+            await CANUpgradeService.CANBoardReboot();
+          } else {
+            await CANUpgradeService.UARTBoardReboot();
+          }
+          addLog(`[${msTimestamp()}] Reboot command sent`);
+        } catch (err: any) {
+          addLog(`[${msTimestamp()}] Error: ${err.message || err}`);
+        }
+      },
+    });
+    setDialogOpen(true);
   };
 
   return (
@@ -265,6 +281,27 @@ export function FirmwareUpgradePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{dialogConfig.title}</DialogTitle>
+            <DialogDescription>{dialogConfig.message}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            {dialogConfig.type === "confirm" && (
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("fw.cancel")}</Button>
+            )}
+            <Button onClick={() => {
+              setDialogOpen(false);
+              if (dialogConfig.onConfirm) dialogConfig.onConfirm();
+            }}>
+              {dialogConfig.type === "confirm" ? t("fw.reboot") : t("fw.ok")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
