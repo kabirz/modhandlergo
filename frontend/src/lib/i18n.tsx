@@ -23,8 +23,6 @@ const dict: Record<string, Record<Lang, string>> = {
   "nav.canCommand":   { zh: "CAN 命令",    en: "CAN Command" },
   "nav.canDisabled":  { zh: "请先在固件升级中打开CAN设备", en: "Open CAN device in Firmware page first" },
   "sidebar.theme":    { zh: "主题",         en: "Theme" },
-  "sidebar.light":    { zh: "亮色",         en: "Light" },
-  "sidebar.dark":     { zh: "暗色",         en: "Dark" },
   "sidebar.version":  { zh: "版本",         en: "Version" },
   "sidebar.lang":     { zh: "语言",         en: "Lang" },
 
@@ -50,6 +48,7 @@ const dict: Record<string, Record<Lang, string>> = {
   "lora.data":        { zh: "数据",         en: "Data" },
   "lora.saved":       { zh: "已保存",       en: "Saved" },
   "lora.connecting":  { zh: "连接中",       en: "Connecting" },
+  "lora.sendPlaceholder": { zh: "十六进制数据（空格分隔）", en: "hex data (space separated)" },
 
   // LoRa Config
   "cfg.transport":    { zh: "连接方式",     en: "Transport" },
@@ -202,6 +201,8 @@ const dict: Record<string, Record<Lang, string>> = {
   "about.canAdapter":  { zh: "CAN 适配器",   en: "CAN Adapter" },
   "about.serial":      { zh: "串口",         en: "Serial" },
   "about.protocol":    { zh: "协议",         en: "Protocol" },
+  "about.terminal":    { zh: "终端",         en: "Terminal" },
+  "about.shortcuts":   { zh: "快捷键",       en: "Shortcuts" },
   "about.license":     { zh: "许可证",       en: "License" },
   "about.ok":          { zh: "确定",         en: "OK" },
 

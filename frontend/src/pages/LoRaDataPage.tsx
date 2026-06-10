@@ -252,7 +252,7 @@ export function LoRaDataPage() {
       {/* Operations */}
       <div className="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border/50">
         <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-        <Input value={sendData} onChange={(e) => setSendData(e.target.value)} placeholder="hex data (space separated)"
+        <Input value={sendData} onChange={(e) => setSendData(e.target.value)} placeholder={t("lora.sendPlaceholder")}
           className="flex-1 h-7 text-xs font-mono" onKeyDown={(e) => e.key === "Enter" && handleSend()} />
         <Button onClick={handleSend} size="sm" className="h-7 px-4">{t("lora.send")}</Button>
         <div className="w-px h-5 bg-border/50" />

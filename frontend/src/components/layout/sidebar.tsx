@@ -33,7 +33,7 @@ function AboutDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl shadow-2xl w-[380px] p-6 space-y-4"
+      <div className="bg-card border border-border rounded-xl shadow-2xl w-[460px] p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">{t("about.title")}</h2>
@@ -67,10 +67,18 @@ function AboutDialog({ onClose }: { onClose: () => void }) {
             <span>go.bug.st/serial (跨平台)</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("about.protocol")}</span>
-            <span>USR1566 / LoRa / CAN 2.0</span>
+            <span className="text-muted-foreground">{t("about.terminal")}</span>
+            <span>xterm.js + Telnet (IAC/NAWS/TTYPE)</span>
           </div>
-          <div className="border-t border-border pt-3 mt-3">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{t("about.protocol")}</span>
+            <span>USR1566 / LoRa / CAN 2.0 / Telnet</span>
+          </div>
+          <div className="border-t border-border pt-3 mt-3 space-y-2">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{t("about.shortcuts")}</span>
+              <span>Ctrl+Q 退出 · Ctrl+Shift+P 终端</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("about.license")}</span>
               <span>Apache-2.0</span>
@@ -263,31 +271,30 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme, defau
         <div className="px-2 py-3 border-t border-sidebar-border space-y-2">
           {/* Theme */}
           <div className="flex items-center gap-1 px-2">
-            <span className="text-[11px] text-muted-foreground shrink-0">{t("sidebar.theme")}：</span>
+            <span className="text-[11px] text-muted-foreground shrink-0 min-w-12 text-right whitespace-nowrap">{t("sidebar.theme")}：</span>
             <button
               onClick={() => { if (darkMode) onToggleTheme(); }}
               className={cn(
-                "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition-colors",
+                "p-2 rounded cursor-pointer transition-colors",
                 !darkMode ? "bg-primary text-primary-foreground" : "bg-background text-foreground border border-input hover:bg-muted"
               )}
             >
-              <Sun className="h-3 w-3" />{t("sidebar.light")}
+              <Sun className="h-4 w-4" />
             </button>
             <button
               onClick={() => { if (!darkMode) onToggleTheme(); }}
               className={cn(
-                "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] cursor-pointer transition-colors",
+                "p-2 rounded cursor-pointer transition-colors",
                 darkMode ? "bg-primary text-primary-foreground" : "bg-background text-foreground border border-input hover:bg-muted"
               )}
             >
-              <Moon className="h-3 w-3" />{t("sidebar.dark")}
+              <Moon className="h-4 w-4" />
             </button>
           </div>
 
           {/* Language */}
           <div className="flex items-center gap-1 px-2">
-            <Languages className="h-3 w-3 text-muted-foreground shrink-0" />
-            <span className="text-[11px] text-muted-foreground shrink-0">{t("sidebar.lang")}：</span>
+            <span className="text-[11px] text-muted-foreground shrink-0 min-w-12 text-right whitespace-nowrap">{t("sidebar.lang")}：</span>
             <button
               onClick={() => setLang("zh")}
               className={cn(
@@ -304,7 +311,7 @@ export function Sidebar({ activePage, onNavigate, darkMode, onToggleTheme, defau
                 lang === "en" ? "bg-primary text-primary-foreground" : "bg-background text-foreground border border-input hover:bg-muted"
               )}
             >
-              EN
+              English
             </button>
           </div>
 
