@@ -50,12 +50,16 @@
 - 可配置 TCP/UDP 端口、NID、GWID
 - 客户端连接后才可操作，断开自动停止自动遥测
 
-### UART/TCP 终端
-- 串口/TCP 双协议终端（类似串口助手/Telnet）
-- RAW 模式逐字符发送，支持 Ctrl+字母、Backspace 等控制键
+### UART/TCP/Telnet 终端
+- UART / TCP / Telnet 三种传输模式，下拉框切换
+- RAW 模式逐字符发送，无本地回显，所见即远端所发
+- Telnet 协议完整支持：IAC 协商 (ECHO/SGA/TERMINAL-TYPE/NAWS)、子协商处理
+- 终端类型自动上报 (xterm-256color)，窗口尺寸实时同步 (NAWS)
+- 断开后按 `r` 键快速重连
+- Ctrl+L 清屏，Ctrl+Q 退出软件
 - xterm.js 内核，完整 ANSI 转义序列支持（VT100 颜色/光标控制）
 - Dracula 主题配色
-- 无本地回显，所见即远端所发
+- 切换到 UART 时自动刷新串口列表
 - 默认隐藏，按 Ctrl+Shift+P 切换
 
 ### 其他
