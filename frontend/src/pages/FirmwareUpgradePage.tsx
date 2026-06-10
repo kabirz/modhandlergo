@@ -74,6 +74,16 @@ export function FirmwareUpgradePage() {
     detectCanDevices();
   }, []);
 
+  // Refresh serial ports when switching to UART or after disconnect
+  useEffect(() => {
+    if (channel === "uart" && !connected) {
+      CANUpgradeService.DetectSerialPorts().then((ports) => {
+        setSerialPorts(ports);
+        if (ports.length > 0 && !selectedPort) setSelectedPort(ports[0].portName);
+      }).catch(() => {});
+    }
+  }, [channel, connected]);
+
   const handleConnect = async () => {
     try {
       if (connected) {

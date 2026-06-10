@@ -56,6 +56,17 @@ export function TerminalPage() {
     connectedRef.current = connected;
   }, [connected]);
 
+  // Refresh serial ports when switching to UART
+  useEffect(() => {
+    if (transport === "uart" && !connected) {
+      TerminalService.EnumPorts().then((ports) => {
+        const names = (ports || []).map((p: any) => p.name || "");
+        setAvailablePorts(names);
+        if (names.length > 0 && !uartPort) setUartPort(names[0]);
+      }).catch(() => {});
+    }
+  }, [transport, connected]);
+
   // Initialize xterm
   useEffect(() => {
     if (!termRef.current || xtermRef.current) return;

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Sidebar, APP_VERSION } from "@/components/layout/sidebar";
 import { I18nProvider } from "@/lib/i18n";
 import { useWailsEvent } from "@/hooks/useEvents";
+import { Application } from "@wailsio/runtime";
 import { LoRaDataPage } from "@/pages/LoRaDataPage";
 import { LoRaConfigPage } from "@/pages/LoRaConfigPage";
 import { FirmwareUpgradePage } from "@/pages/FirmwareUpgradePage";
@@ -54,7 +55,7 @@ function App() {
   useWailsEvent<number>("can:connected", () => setCanConnected(true));
   useWailsEvent<any>("can:disconnected", () => setCanConnected(false));
 
-  // Ctrl+Shift+P toggles simulator visibility
+  // Ctrl+Shift+P toggles simulator visibility, Ctrl+Q quits the app
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === "P") {
@@ -67,6 +68,10 @@ function App() {
           }
           return next;
         });
+      }
+      if (e.ctrlKey && e.key === "q") {
+        e.preventDefault();
+        Application.Quit();
       }
     };
     window.addEventListener("keydown", handler);
