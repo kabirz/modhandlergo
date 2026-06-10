@@ -17,7 +17,7 @@ const navItems: NavItem[] = [
   { id: "terminal", labelKey: "nav.terminal", icon: Monitor },
 ];
 
-export const APP_VERSION = "0.2.2";
+export const APP_VERSION = "0.2.3";
 
 interface SidebarProps {
   activePage: string;
