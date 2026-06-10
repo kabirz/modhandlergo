@@ -107,7 +107,7 @@ func (b *Backend) DetectDevices() ([]int, error) {
 		return nil, fmt.Errorf("PCAN: PCANBasic.dll not loaded")
 	}
 	var channels []int
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		param := fmt.Sprintf("devicetype=pcan_usb,controllernumber=%d", i)
 		paramPtr, _ := syscall.BytePtrFromString(param)
 		var ch uint16

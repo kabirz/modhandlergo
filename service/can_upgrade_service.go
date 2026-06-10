@@ -171,10 +171,10 @@ func (s *CANUpgradeService) ensureCANManager() *canmanager.Manager {
 			s.canMgr.SetFrameCallback(func(id uint32, data [8]byte, dlc uint8) {
 				if s.app != nil {
 					d := make([]int, dlc)
-					for i := uint8(0); i < dlc; i++ {
+					for i := range dlc {
 						d[i] = int(data[i])
 					}
-					s.app.Event.Emit("can:frame", map[string]interface{}{
+					s.app.Event.Emit("can:frame", map[string]any{
 						"id":   id,
 						"data": d,
 						"dlc":  int(dlc),

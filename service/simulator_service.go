@@ -388,7 +388,7 @@ func (s *SimulatorService) sendFrame(id uint32, data []byte) {
 func (s *SimulatorService) heartbeatLoop(ctx context.Context) {
 	frame := &canhal.Frame{ID: canmanager.Heartbeat, DLC: 1, Data: [8]byte{5}}
 	for {
-		s.sendFrame(canmanager.Heartbeat, frame.Data[:frame.DLC])
+		s.sendFrame(frame.ID, frame.Data[:frame.DLC])
 		select {
 		case <-ctx.Done():
 			return
@@ -431,7 +431,7 @@ func (s *SimulatorService) log(msg string) {
 	}
 }
 
-func (s *SimulatorService) logf(format string, args ...interface{}) {
+func (s *SimulatorService) logf(format string, args ...any) {
 	s.log(fmt.Sprintf(format, args...))
 }
 

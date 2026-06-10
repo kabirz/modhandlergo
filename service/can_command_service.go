@@ -38,7 +38,7 @@ func (s *CANCommandService) ServiceStartup(ctx context.Context, opts application
 				for i, b := range ev.Data {
 					data[i] = int(b)
 				}
-				s.app.Event.Emit("can:frame", map[string]interface{}{
+				s.app.Event.Emit("can:frame", map[string]any{
 					"id":   ev.ID,
 					"data": data,
 					"dlc":  ev.DLC,

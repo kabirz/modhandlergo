@@ -47,7 +47,7 @@ func New(backend canhal.Backend) *Dispatcher {
 		subscribers: make(map[uint64]func(*canhal.Frame)),
 		waitCh:      make(chan *canhal.Frame, 1),
 		cbPool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				s := make([]func(*canhal.Frame), 0, 8)
 				return &s
 			},

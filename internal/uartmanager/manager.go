@@ -52,12 +52,6 @@ func (m *Manager) log(msg string) {
 	}
 }
 
-func (m *Manager) progress(pct int) {
-	if m.onProgress != nil {
-		m.onProgress(pct)
-	}
-}
-
 // --- upgrade.Transport implementation ---
 
 // SendCommand implements upgrade.Transport for UART.
@@ -295,20 +289,6 @@ func OpenFirmwareFile() (string, error) {
 	return "", fmt.Errorf("not implemented: use CANUpgradeService.OpenFirmwareFile")
 }
 
-// DecodeResponse parses a UART response frame's data payload into code+val.
-// Kept for backward compatibility with any external callers.
-func decodeResponseLocal(data []byte) (code uint32, val uint32) {
-	return DecodeResponse(data)
-}
-
-// ensurePort checks if the port is open and returns an error if not.
-func (m *Manager) ensurePort() error {
-	if m.port == nil {
-		return fmt.Errorf("serial port not connected")
-	}
-	return nil
-}
-
 // Read is a helper for external callers that need raw serial read (e.g., diagnostics).
 func (m *Manager) Read(buf []byte) (int, error) {
 	m.mu.Lock()
@@ -323,8 +303,8 @@ func (m *Manager) Read(buf []byte) (int, error) {
 func extractPortNum(name string) int {
 	// Strip common prefixes
 	for _, prefix := range []string{"COM", "com", "ttyUSB", "ttyACM", "/dev/"} {
-		if strings.HasPrefix(name, prefix) {
-			name = strings.TrimPrefix(name, prefix)
+		if after, ok :=strings.CutPrefix(name, prefix); ok  {
+			name = after
 			break
 		}
 	}

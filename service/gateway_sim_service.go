@@ -21,9 +21,6 @@ const (
 	dataHandler = 0x01
 	dataTest    = 0x02
 	dataRSSI    = 0x03
-
-	frameHdr = 0xAA55
-	frameFtr = "\r\n"
 )
 
 // ── Gateway simulator config ──
@@ -509,7 +506,7 @@ func (s *GatewaySimService) handleUDP(raw string) []byte {
 	if start < 0 || end <= start {
 		return nil
 	}
-	var root map[string]interface{}
+	var root map[string]any
 	if err := json.Unmarshal([]byte(raw[start:end+1]), &root); err != nil {
 		return nil
 	}
@@ -524,12 +521,13 @@ func (s *GatewaySimService) handleUDP(raw string) []byte {
 			ackMsg = "ACK-SETPARA"
 		}
 		cmdType, _ := root["TYPE"].(string)
-		if cmdType == "JSON" {
+		switch cmdType {
+		case "JSON":
 			cmdVal, _ := root["CMD"].(string)
 			if cmdVal == "NETDEV" {
 				return s.handleGetNet(ackMsg)
 			}
-		} else if cmdType == "AT" {
+		case "AT":
 			atCmd, _ := root["CMD"].(string)
 			return s.handleAT(atCmd, ackMsg)
 		}
@@ -538,7 +536,7 @@ func (s *GatewaySimService) handleUDP(raw string) []byte {
 }
 
 func (s *GatewaySimService) handleSearch() []byte {
-	return udpWrap(map[string]interface{}{
+	return udpWrap(map[string]any{
 		"VER": "1.0", "MSG": "ACK-SEARCH",
 		"MAC": s.cfg.MAC, "DEV": s.cfg.DevName,
 		"SVER": s.cfg.SWVer, "TYPE": "LORA",
@@ -546,7 +544,7 @@ func (s *GatewaySimService) handleSearch() []byte {
 }
 
 func (s *GatewaySimService) handleGetNet(ackMsg string) []byte {
-	return udpWrap(map[string]interface{}{
+	return udpWrap(map[string]any{
 		"VER": "1.0", "MSG": ackMsg,
 		"CMD": map[string]string{
 			"IP": s.cfg.IP, "SM": s.cfg.Mask, "GW": s.cfg.GW,
@@ -556,7 +554,7 @@ func (s *GatewaySimService) handleGetNet(ackMsg string) []byte {
 
 func (s *GatewaySimService) handleAT(atCmd, ackMsg string) []byte {
 	resp := s.simulateAT(strings.TrimSpace(atCmd))
-	return udpWrap(map[string]interface{}{
+	return udpWrap(map[string]any{
 		"VER": "1.0", "MSG": ackMsg, "CMD": resp,
 	})
 }
@@ -653,10 +651,10 @@ func (s *GatewaySimService) simulateAT(cmd string) string {
 }
 
 func (s *GatewaySimService) handleATCh(rest string) string {
-	if idx := strings.Index(rest, "="); idx >= 0 {
+	if before, after, ok := strings.Cut(rest, "="); ok {
 		var n, val int
-		fmt.Sscanf(rest[:idx], "%d", &n)
-		fmt.Sscanf(rest[idx+1:], "%d", &val)
+		fmt.Sscanf(before, "%d", &n)
+		fmt.Sscanf(after, "%d", &val)
 		s.cfg.CH[n] = val
 		return fmt.Sprintf("\r\n+CH%d:OK\r\n", n)
 	}
@@ -670,10 +668,10 @@ func (s *GatewaySimService) handleATCh(rest string) string {
 }
 
 func (s *GatewaySimService) handleATSpd(rest string) string {
-	if idx := strings.Index(rest, "="); idx >= 0 {
+	if before, after, ok := strings.Cut(rest, "="); ok {
 		var n, val int
-		fmt.Sscanf(rest[:idx], "%d", &n)
-		fmt.Sscanf(rest[idx+1:], "%d", &val)
+		fmt.Sscanf(before, "%d", &n)
+		fmt.Sscanf(after, "%d", &val)
 		s.cfg.SPD[n] = val
 		return fmt.Sprintf("\r\n+SPD%d:OK\r\n", n)
 	}
@@ -687,10 +685,10 @@ func (s *GatewaySimService) handleATSpd(rest string) string {
 }
 
 func (s *GatewaySimService) handleATPwr(rest string) string {
-	if idx := strings.Index(rest, "="); idx >= 0 {
+	if before, after, ok := strings.Cut(rest, "="); ok {
 		var n, val int
-		fmt.Sscanf(rest[:idx], "%d", &n)
-		fmt.Sscanf(rest[idx+1:], "%d", &val)
+		fmt.Sscanf(before, "%d", &n)
+		fmt.Sscanf(after, "%d", &val)
 		s.cfg.PWR[n] = val
 		return fmt.Sprintf("\r\n+PWR%d:OK\r\n", n)
 	}
@@ -766,7 +764,7 @@ func (s *GatewaySimService) SendCommand(cmd string) error {
 
 // ── Helpers ──
 
-func (s *GatewaySimService) logf(format string, args ...interface{}) {
+func (s *GatewaySimService) logf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if s.app != nil {
 		s.app.Event.Emit("gateway:sim:log", msg)
@@ -785,7 +783,7 @@ func (s *GatewaySimService) emitClientState(connected bool) {
 	}
 }
 
-func udpWrap(data map[string]interface{}) []byte {
+func udpWrap(data map[string]any) []byte {
 	j, _ := json.Marshal(data)
 	return []byte("USR1566" + string(j) + "USR1566")
 }
@@ -804,30 +802,3 @@ func abs(x int) int {
 	return x
 }
 
-// getLocalIPs returns non-loopback local IPv4 addresses.
-func getLocalIPs() []string {
-	var ips []string
-	seen := map[string]bool{}
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err == nil {
-		if addr, ok := conn.LocalAddr().(*net.UDPAddr); ok {
-			ip := addr.IP.String()
-			if !seen[ip] && !strings.HasPrefix(ip, "127.") {
-				ips = append(ips, ip)
-				seen[ip] = true
-			}
-		}
-		conn.Close()
-	}
-	addrs, _ := net.InterfaceAddrs()
-	for _, addr := range addrs {
-		if ipNet, ok := addr.(*net.IPNet); ok && ipNet.IP.To4() != nil {
-			ip := ipNet.IP.String()
-			if !seen[ip] && !strings.HasPrefix(ip, "127.") {
-				ips = append(ips, ip)
-				seen[ip] = true
-			}
-		}
-	}
-	return ips
-}

@@ -33,7 +33,7 @@ func (b *Bridge) SetSDK(sdk *lorasdk.SDK) {
 	b.sdk = sdk
 }
 
-func (b *Bridge) emit(event string, data interface{}) {
+func (b *Bridge) emit(event string, data any) {
 	if b.app != nil {
 		b.app.Event.Emit(event, data)
 	}
@@ -51,7 +51,7 @@ func (b *Bridge) OnFrame(nid uint32, payload []byte) {
 	}
 
 	// Emit raw frame for history display
-	b.emit("lora:frame", map[string]interface{}{
+	b.emit("lora:frame", map[string]any{
 		"nid":     nid,
 		"payload": payload,
 	})
@@ -71,7 +71,7 @@ func (b *Bridge) OnFrame(nid uint32, payload []byte) {
 				if btn != 0 {
 					btnStr = "Released"
 				}
-				b.emit("lora:log", map[string]interface{}{
+				b.emit("lora:log", map[string]any{
 					"msg": fmt.Sprintf("[%s] RX Telemetry NID=0x%08X: X=%.1f° Y=%.1f° Btn=%s",
 						time.Now().Format("15:04:05.000"), nid,
 						float32(xSigned)/10.0, float32(ySigned)/10.0, btnStr),
@@ -81,7 +81,7 @@ func (b *Bridge) OnFrame(nid uint32, payload []byte) {
 		}
 		// Parse merged scanner frame (20 bytes)
 		if sd, ok := lorasdk.ParseScannerData(payload); ok {
-			b.emit("lora:scanner", map[string]interface{}{
+			b.emit("lora:scanner", map[string]any{
 				"nid":            nid,
 				"overbreakValid": sd.OverbreakValid,
 				"laserValid":     sd.LaserValid,
@@ -113,12 +113,12 @@ func (b *Bridge) OnFrame(nid uint32, payload []byte) {
 				testDesc = "TEST (short)"
 			}
 		}
-		b.emit("lora:log", map[string]interface{}{
+		b.emit("lora:log", map[string]any{
 			"msg": fmt.Sprintf("[%s] RX Test NID=0x%08X: %s",
 				time.Now().Format("15:04:05.000"), nid, testDesc),
 			"src": 0,
 		})
-		b.emit("lora:test", map[string]interface{}{
+		b.emit("lora:test", map[string]any{
 			"nid":     nid,
 			"payload": payload,
 		})
@@ -126,12 +126,12 @@ func (b *Bridge) OnFrame(nid uint32, payload []byte) {
 		b.sendTestEcho(nid, payload)
 
 	case lorasdk.DataRSSI:
-		b.emit("lora:log", map[string]interface{}{
+		b.emit("lora:log", map[string]any{
 			"msg": fmt.Sprintf("[%s] RX RSSI Request NID=0x%08X",
 				time.Now().Format("15:04:05.000"), nid),
 			"src": 0,
 		})
-		b.emit("lora:rssi", map[string]interface{}{
+		b.emit("lora:rssi", map[string]any{
 			"nid":     nid,
 			"payload": payload,
 		})
@@ -142,7 +142,7 @@ func (b *Bridge) OnFrame(nid uint32, payload []byte) {
 
 // OnDeviceFound implements lorasdk.Callbacks.
 func (b *Bridge) OnDeviceFound(mac, deviceName, swVersion, fromIP string) {
-	b.emit("lora:device", map[string]interface{}{
+	b.emit("lora:device", map[string]any{
 		"mac":     mac,
 		"name":    deviceName,
 		"version": swVersion,
@@ -159,11 +159,11 @@ func (b *Bridge) OnATResponse(response string) {
 
 	// Parse helper: "+PREFIX: value" -> value string
 	extract := func(prefix string) string {
-		idx := strings.Index(s, prefix)
-		if idx < 0 {
+		_, after, ok := strings.Cut(s, prefix)
+		if !ok {
 			return ""
 		}
-		val := strings.TrimSpace(s[idx+len(prefix):])
+		val := strings.TrimSpace(after)
 		if spIdx := strings.IndexAny(val, " \r\n"); spIdx >= 0 {
 			val = val[:spIdx]
 		}
@@ -223,20 +223,20 @@ func (b *Bridge) OnATResponse(response string) {
 	emitTagValue("+PWR", 5, "lora:pwr")
 
 	// +SOCKA:<mode>,<ip>,<remote_port>,<local_port>
-	if idx := strings.Index(s, "+SOCKA:"); idx >= 0 {
-		val := strings.TrimSpace(s[idx+7:])
+	if _, after, ok := strings.Cut(s, "+SOCKA:"); ok {
+		val := strings.TrimSpace(after)
 		b.emit("lora:socka", val)
 	}
 
 	// +SOCKEN:<status>,<status>
-	if idx := strings.Index(s, "+SOCKEN:"); idx >= 0 {
-		val := strings.TrimSpace(s[idx+8:])
+	if _, after, ok := strings.Cut(s, "+SOCKEN:"); ok {
+		val := strings.TrimSpace(after)
 		b.emit("lora:socken", val)
 	}
 
 	// +NINFO: parse SNR/RSSI and send RSSI response back to pending NID
-	if idx := strings.Index(s, "+NINFO:"); idx >= 0 {
-		b.handleNINFO(s[idx+7:])
+	if _, after, ok := strings.Cut(s, "+NINFO:"); ok {
+		b.handleNINFO(after)
 	}
 }
 
@@ -251,12 +251,12 @@ func (b *Bridge) OnNetParams(ip, mask, gateway string) {
 
 // OnLog implements lorasdk.Callbacks.
 func (b *Bridge) OnLog(message string, source lorasdk.LogSource) {
-	b.emit("lora:log", map[string]interface{}{"msg": fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05.000"), message), "src": int(source)})
+	b.emit("lora:log", map[string]any{"msg": fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05.000"), message), "src": int(source)})
 }
 
 // OnHexDump implements lorasdk.Callbacks.
 func (b *Bridge) OnHexDump(prefix string, data []byte) {
-	b.emit("lora:hexdump", map[string]interface{}{
+	b.emit("lora:hexdump", map[string]any{
 		"prefix": prefix,
 		"data":   data,
 	})
@@ -264,7 +264,7 @@ func (b *Bridge) OnHexDump(prefix string, data []byte) {
 
 // OnError implements lorasdk.Callbacks.
 func (b *Bridge) OnError(message string, source lorasdk.LogSource) {
-	b.emit("lora:log", map[string]interface{}{"msg": fmt.Sprintf("[%s] [ERROR] %s", time.Now().Format("15:04:05.000"), message), "src": int(source)})
+	b.emit("lora:log", map[string]any{"msg": fmt.Sprintf("[%s] [ERROR] %s", time.Now().Format("15:04:05.000"), message), "src": int(source)})
 }
 
 // sendScannerEcho sends a simulated scanner merged frame back to the NID.
@@ -345,7 +345,7 @@ func (b *Bridge) handleNINFO(info string) {
 
 	b.sdk.SendRSSIResponse(nid, snrRaw, rssiRaw, testFlag)
 	b.pendingRSSiNID = 0
-	b.emit("lora:log", map[string]interface{}{"msg": fmt.Sprintf("[%s] RSSI response sent: SNR=%d, RSSI=%d", time.Now().Format("15:04:05.000"), snrVal, rssiVal), "src": 0})
+	b.emit("lora:log", map[string]any{"msg": fmt.Sprintf("[%s] RSSI response sent: SNR=%d, RSSI=%d", time.Now().Format("15:04:05.000"), snrVal, rssiVal), "src": 0})
 }
 
 // Ensure Bridge satisfies lorasdk.Callbacks interface.

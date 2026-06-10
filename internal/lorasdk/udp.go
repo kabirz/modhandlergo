@@ -32,7 +32,7 @@ func NewUDPClient(cb Callbacks) *UDPClient {
 func (u *UDPClient) SetLocalIP(ip string) { u.localIP = ip }
 
 // wrapJSON wraps a JSON object in USR1566 protocol: "USR1566" + JSON + "USR1566"
-func wrapJSON(root map[string]interface{}) ([]byte, error) {
+func wrapJSON(root map[string]any) ([]byte, error) {
 	jsonBytes, err := json.Marshal(root)
 	if err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func (u *UDPClient) SearchDevices(ctx context.Context) {
 	// Reset local IP to force re-enumeration (matches C: sdk->local_if_ip[0] = '\0')
 	u.localIP = ""
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"VER":  "1.0",
 		"MSG":  "SEARCH",
 		"TYPE": "LORA",
@@ -243,7 +243,7 @@ func (u *UDPClient) SendAT(atCmd string, gatewayIP string) {
 		mac = "D4AD20ED63C4"
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"VER":  "1.0",
 		"MSG":  msgType,
 		"TYPE": "AT",
@@ -274,7 +274,7 @@ func (u *UDPClient) GetNetParams(gatewayIP string) {
 		return
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"VER":  "1.0",
 		"MSG":  "GETPARA",
 		"TYPE": "JSON",
@@ -305,7 +305,7 @@ func (u *UDPClient) QueryRSSI(gatewayIP string, tcpClient *TCPClient, nid uint32
 		return
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"VER":  "1.0",
 		"MSG":  "GETPARA",
 		"TYPE": "AT",
@@ -334,7 +334,7 @@ func (u *UDPClient) processResponse(raw string, fromIP string) {
 		return
 	}
 
-	var root map[string]interface{}
+	var root map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &root); err != nil {
 		u.cb.OnLog(fmt.Sprintf("RX <- (JSON parse error): %s", jsonStr), LogUDP)
 		return
@@ -359,7 +359,7 @@ func (u *UDPClient) processResponse(raw string, fromIP string) {
 			return
 		}
 		switch cmd := cmdObj.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			ip, _ := cmd["IP"].(string)
 			sm, _ := cmd["SM"].(string)
 			gw, _ := cmd["GW"].(string)
@@ -372,8 +372,8 @@ func (u *UDPClient) processResponse(raw string, fromIP string) {
 			u.cb.OnLog(fmt.Sprintf("RX <- CMD: %s", cmd), LogUDP)
 
 			// Parse GWID from response
-			if idx := strings.Index(cmd, "+GWID:"); idx >= 0 {
-				val := strings.TrimSpace(cmd[idx+6:])
+			if _, after, ok := strings.Cut(cmd, "+GWID:"); ok {
+				val := strings.TrimSpace(after)
 				// Remove trailing "OK" or other status
 				if spIdx := strings.IndexAny(val, " \r\n"); spIdx >= 0 {
 					val = val[:spIdx]

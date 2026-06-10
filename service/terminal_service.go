@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -88,7 +89,7 @@ func (s *TerminalService) ConnectTCP(host string, port int) error {
 		return fmt.Errorf("already connected")
 	}
 
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("TCP connect failed: %w", err)
@@ -115,7 +116,7 @@ func (s *TerminalService) ConnectTelnet(host string, port, cols, rows int) error
 		return fmt.Errorf("already connected")
 	}
 
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("Telnet connect failed: %w", err)
@@ -474,12 +475,12 @@ func (s *TerminalService) emitStatus(running bool) {
 	s.pushEvent("terminal:status", running)
 }
 
-func (s *TerminalService) pushEvent(event string, data interface{}) {
+func (s *TerminalService) pushEvent(event string, data any) {
 	if s.app != nil {
 		s.app.Event.Emit(event, data)
 	}
 }
 
-func (s *TerminalService) pushError(format string, args ...interface{}) {
+func (s *TerminalService) pushError(format string, args ...any) {
 	s.pushEvent("terminal:error", fmt.Sprintf(format, args...))
 }

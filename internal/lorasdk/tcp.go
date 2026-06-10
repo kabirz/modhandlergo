@@ -41,7 +41,7 @@ func (t *TCPClient) Connect(ip string, port int) {
 	t.cancel = cancel
 
 	go func() {
-		addr := fmt.Sprintf("%s:%d", ip, port)
+		addr := net.JoinHostPort(ip, fmt.Sprintf("%d", port))
 		conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
 		if err != nil {
 			t.cb.OnError(fmt.Sprintf("TCP connect failed: %v", err), LogTCP)
