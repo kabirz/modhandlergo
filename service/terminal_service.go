@@ -24,8 +24,13 @@ const (
 	telnetSE   byte = 0xF0 // Sub-negotiation End
 	telnetNOP  byte = 0xF1
 
-	optEcho byte = 0x01 // ECHO
-	optSGA  byte = 0x03 // Suppress Go Ahead
+	optEcho    byte = 0x01 // ECHO
+	optSGA     byte = 0x03 // Suppress Go Ahead
+	optTType   byte = 0x18 // TERMINAL-TYPE
+	optNAWS    byte = 0x1F // Negotiate About Window Size
+
+	telnetSubIS   byte = 0 // Sub-negotiation: IS (client sends term type)
+	telnetSubSend byte = 1 // Sub-negotiation: SEND (server requests term type)
 )
 
 // ── Public types (exported for TypeScript binding) ──
@@ -52,6 +57,9 @@ type TerminalService struct {
 
 	// Telnet mode
 	telnetMode bool
+	termType   string
+	cols       uint16
+	rows       uint16
 
 	// UART-specific
 	portName string
@@ -59,7 +67,11 @@ type TerminalService struct {
 }
 
 func NewTerminalService() *TerminalService {
-	return &TerminalService{}
+	return &TerminalService{
+		termType: "xterm-256color",
+		cols:     80,
+		rows:     24,
+	}
 }
 
 func (s *TerminalService) ServiceStartup(ctx context.Context, opts application.ServiceOptions) error {
@@ -95,7 +107,7 @@ func (s *TerminalService) ConnectTCP(host string, port int) error {
 }
 
 // ConnectTelnet connects to a TCP host:port with Telnet IAC negotiation.
-func (s *TerminalService) ConnectTelnet(host string, port int) error {
+func (s *TerminalService) ConnectTelnet(host string, port, cols, rows int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -114,6 +126,8 @@ func (s *TerminalService) ConnectTelnet(host string, port int) error {
 	s.address = addr
 	s.running = true
 	s.telnetMode = true
+	s.cols = uint16(cols)
+	s.rows = uint16(rows)
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	go s.readLoop(ctx)
@@ -327,6 +341,8 @@ func (s *TerminalService) handleTelnetData(data []byte) {
 				i = len(data)
 				continue
 			}
+			// Extract sub-negotiation payload (between SB and IAC SE)
+			s.handleTelnetSubneg(data[i+2 : i+2+end])
 			// Skip entire sub-negotiation (i+2 + end + 2 for IAC SE)
 			i += 2 + end + 2
 			continue
@@ -353,11 +369,15 @@ func (s *TerminalService) handleTelnetCommand(cmd, opt byte) {
 	var resp []byte
 	switch cmd {
 	case telnetDO:
-		if opt == optSGA {
-			// We will suppress go-ahead
+		switch opt {
+		case optSGA, optTType, optNAWS:
 			resp = []byte{telnetIAC, telnetWILL, opt}
-		} else {
+		default:
 			resp = []byte{telnetIAC, telnetWONT, opt}
+		}
+		// After agreeing to NAWS, send current window size immediately
+		if opt == optNAWS {
+			s.sendNAWS(conn)
 		}
 	case telnetDONT:
 		// No response needed
@@ -386,6 +406,68 @@ func bytesIndexIACSE(data []byte) int {
 		}
 	}
 	return -1
+}
+
+// handleTelnetSubneg processes a sub-negotiation payload (content between SB and IAC SE).
+func (s *TerminalService) handleTelnetSubneg(payload []byte) {
+	if len(payload) < 1 {
+		return
+	}
+	opt := payload[0]
+
+	switch opt {
+	case optTType:
+		// TERMINAL-TYPE: server sends SEND → client responds IS "xterm-256color"
+		if len(payload) >= 2 && payload[1] == telnetSubSend {
+			s.mu.Lock()
+			conn := s.conn
+			tt := s.termType
+			s.mu.Unlock()
+			if conn == nil {
+				return
+			}
+			resp := append([]byte{telnetIAC, telnetSB, optTType, telnetSubIS}, []byte(tt)...)
+			resp = append(resp, telnetIAC, telnetSE)
+			_, _ = conn.Write(resp)
+		}
+	}
+}
+
+// sendNAWS sends the current window size to the server via NAWS sub-negotiation.
+// Caller must NOT hold s.mu.
+func (s *TerminalService) sendNAWS(conn io.Writer) {
+	s.mu.Lock()
+	cols := s.cols
+	rows := s.rows
+	s.mu.Unlock()
+
+	writeNAWS(conn, cols, rows)
+}
+
+// writeNAWS writes a NAWS sub-negotiation frame. Does not acquire any locks.
+func writeNAWS(conn io.Writer, cols, rows uint16) {
+	resp := []byte{
+		telnetIAC, telnetSB, optNAWS,
+		byte(cols >> 8), byte(cols),
+		byte(rows >> 8), byte(rows),
+		telnetIAC, telnetSE,
+	}
+	_, _ = conn.Write(resp)
+}
+
+// Resize updates the terminal dimensions and sends NAWS if in Telnet mode.
+func (s *TerminalService) Resize(cols, rows int) error {
+	s.mu.Lock()
+	s.cols = uint16(cols)
+	s.rows = uint16(rows)
+	telnet := s.telnetMode
+	conn := s.conn
+	s.mu.Unlock()
+
+	if telnet && conn != nil {
+		writeNAWS(conn, uint16(cols), uint16(rows))
+	}
+	return nil
 }
 
 func (s *TerminalService) emitStatus(running bool) {

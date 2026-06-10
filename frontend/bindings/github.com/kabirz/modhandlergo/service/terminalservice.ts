@@ -21,8 +21,8 @@ export function ConnectTCP(host: string, port: number): $CancellablePromise<void
 /**
  * ConnectTelnet connects to a TCP host:port with Telnet IAC negotiation.
  */
-export function ConnectTelnet(host: string, port: number): $CancellablePromise<void> {
-    return $Call.ByID(702482655, host, port);
+export function ConnectTelnet(host: string, port: number, cols: number, rows: number): $CancellablePromise<void> {
+    return $Call.ByID(702482655, host, port, cols, rows);
 }
 
 /**
@@ -53,6 +53,13 @@ export function EnumPorts(): $CancellablePromise<{ [_ in string]?: string }[]> {
  */
 export function IsConnected(): $CancellablePromise<boolean> {
     return $Call.ByID(972722614);
+}
+
+/**
+ * Resize updates the terminal dimensions and sends NAWS if in Telnet mode.
+ */
+export function Resize(cols: number, rows: number): $CancellablePromise<void> {
+    return $Call.ByID(2895474135, cols, rows);
 }
 
 /**

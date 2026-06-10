@@ -133,6 +133,11 @@ export function TerminalPage() {
       }
     });
 
+    // Notify backend of terminal size changes (Telnet NAWS)
+    term.onResize(({ cols, rows }) => {
+      TerminalService.Resize(cols, rows).catch(() => {});
+    });
+
     // Handle resize
     const onResize = () => fitAddon.fit();
     window.addEventListener("resize", onResize);
@@ -188,8 +193,10 @@ export function TerminalPage() {
 
   const handleConnect = async () => {
     try {
+      const cols = xtermRef.current?.cols ?? 80;
+      const rows = xtermRef.current?.rows ?? 24;
       if (transport === "telnet") {
-        await TerminalService.ConnectTelnet(host, parseInt(tcpPort) || 23);
+        await TerminalService.ConnectTelnet(host, parseInt(tcpPort) || 23, cols, rows);
       } else if (transport === "tcp") {
         await TerminalService.ConnectTCP(host, parseInt(tcpPort) || 23);
       } else {
