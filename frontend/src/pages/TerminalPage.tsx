@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { useI18n } from "@/lib/i18n";
 import { TerminalService } from "../../bindings/github.com/kabirz/modhandlergo/service";
-import { Cable, Plug, Trash2, Terminal as TerminalIcon, Globe } from "lucide-react";
+import { Cable, Plug, Trash2 } from "lucide-react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -38,8 +38,8 @@ const xtermTheme = {
 export function TerminalPage() {
   const { t } = useI18n();
 
-  const [transport, setTransport] = useState<"tcp" | "telnet" | "uart">("tcp");
-  const [host, setHost] = useState("192.168.1.100");
+  const [transport, setTransport] = useState<"uart" | "tcp" | "telnet">("uart");
+  const [host, setHost] = useState("127.0.0.1");
   const [tcpPort, setTcpPort] = useState("23");
   const [uartPort, setUartPort] = useState("");
   const [baudRate, setBaudRate] = useState("115200");
@@ -50,6 +50,7 @@ export function TerminalPage() {
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const connectedRef = useRef(false);
+  const reconnectRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     connectedRef.current = connected;
@@ -83,7 +84,22 @@ export function TerminalPage() {
     // By preventing the event from reaching xterm's internal textarea,
     // the character is never rendered locally and onData does not fire.
     const onRawKey = (e: KeyboardEvent) => {
-      if (!connectedRef.current) return;
+      // Disconnected: 'r' to reconnect
+      if (!connectedRef.current) {
+        if (e.key === "r" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          reconnectRef.current();
+        }
+        return;
+      }
+      // Ctrl+L: clear terminal screen
+      if (e.ctrlKey && e.key === "l") {
+        e.preventDefault();
+        e.stopPropagation();
+        term.clear();
+        return;
+      }
       if (
         e.key.length === 1 &&
         !e.ctrlKey &&
@@ -158,6 +174,7 @@ export function TerminalPage() {
     setConnected(running);
     if (!running) {
       appendOutput("\r\n\x1b[31m── Disconnected ──\x1b[0m\r\n");
+      appendOutput("\x1b[33mPress 'r' to reconnect\x1b[0m\r\n");
     }
   });
 
@@ -178,17 +195,15 @@ export function TerminalPage() {
       } else {
         await TerminalService.ConnectUART(uartPort, parseInt(baudRate) || 115200);
       }
-      const label =
-        transport === "uart"
-          ? `${uartPort}@${baudRate}`
-          : transport === "telnet"
-            ? `telnet://${host}:${tcpPort}`
-            : `tcp://${host}:${tcpPort}`;
-      appendOutput(`\r\n── Connected (${label}) ──\r\n`);
     } catch (err: any) {
       appendOutput(`\r\n\x1b[31m[ERR] ${err}\x1b[0m\r\n`);
     }
   };
+
+  // Keep reconnect ref in sync with current connection params
+  useEffect(() => {
+    reconnectRef.current = handleConnect;
+  });
 
   const handleDisconnect = async () => {
     try {
@@ -203,30 +218,25 @@ export function TerminalPage() {
       {/* Connection Panel */}
       <Card>
         <CardContent className="pt-3">
-          <div className="flex items-end gap-3 flex-wrap">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-muted-foreground">{t("terminal.transport")}</label>
-              <div className="flex gap-1">
-                <Button size="sm" variant={transport === "tcp" ? "default" : "outline"} className="h-7 text-xs px-3" disabled={connected} onClick={() => setTransport("tcp")}>
-                  <Cable className="h-3 w-3 mr-1" /> TCP
-                </Button>
-                <Button size="sm" variant={transport === "telnet" ? "default" : "outline"} className="h-7 text-xs px-3" disabled={connected} onClick={() => setTransport("telnet")}>
-                  <Globe className="h-3 w-3 mr-1" /> {t("terminal.telnet")}
-                </Button>
-                <Button size="sm" variant={transport === "uart" ? "default" : "outline"} className="h-7 text-xs px-3" disabled={connected} onClick={() => setTransport("uart")}>
-                  <TerminalIcon className="h-3 w-3 mr-1" /> UART
-                </Button>
-              </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-muted-foreground whitespace-nowrap">{t("terminal.transport")}</label>
+              <select value={transport} onChange={(e) => setTransport(e.target.value as "uart" | "tcp" | "telnet")} disabled={connected}
+                className="h-7 text-xs rounded-md border border-input bg-background px-2 font-mono disabled:opacity-50">
+                <option value="uart">UART</option>
+                <option value="tcp">TCP</option>
+                <option value="telnet">{t("terminal.telnet")}</option>
+              </select>
             </div>
 
             {(transport === "tcp" || transport === "telnet") && (
               <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">{t("terminal.host")}</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">{t("terminal.host")}</label>
                   <Input value={host} onChange={(e) => setHost(e.target.value)} className="h-7 text-xs w-28 font-mono" disabled={connected} />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">{t("terminal.port")}</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">{t("terminal.port")}</label>
                   <Input value={tcpPort} onChange={(e) => setTcpPort(e.target.value.replace(/\D/g, ""))} className="h-7 text-xs w-16 font-mono" disabled={connected} />
                 </div>
               </>
@@ -234,16 +244,16 @@ export function TerminalPage() {
 
             {transport === "uart" && (
               <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">{t("terminal.port")}</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">{t("terminal.port")}</label>
                   <select value={uartPort} onChange={(e) => setUartPort(e.target.value)} disabled={connected}
                     className="h-7 text-xs rounded-md border border-input bg-background px-2 font-mono disabled:opacity-50">
                     {availablePorts.length === 0 && <option value="">{t("terminal.noPorts")}</option>}
                     {availablePorts.map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground">{t("terminal.baud")}</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">{t("terminal.baud")}</label>
                   <select value={baudRate} onChange={(e) => setBaudRate(e.target.value)} disabled={connected}
                     className="h-7 text-xs rounded-md border border-input bg-background px-2 font-mono disabled:opacity-50">
                     {BAUD_RATES.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -252,7 +262,7 @@ export function TerminalPage() {
               </>
             )}
 
-            <div className="flex items-end gap-1">
+            <div className="flex items-center gap-1">
               {connected ? (
                 <Button onClick={handleDisconnect} variant="destructive" size="sm" className="h-7 text-xs px-4">
                   <Plug className="h-3 w-3 mr-1" /> {t("terminal.disconnect")}
@@ -263,6 +273,8 @@ export function TerminalPage() {
                 </Button>
               )}
             </div>
+
+            <div className="flex-1" />
 
             <div className="flex items-center gap-1">
               <span className={`h-2 w-2 rounded-full ${connected ? "bg-green-500" : "bg-muted-foreground"}`} />

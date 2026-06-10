@@ -242,7 +242,16 @@ func (s *TerminalService) readLoop(ctx context.Context) {
 
 		n, err := conn.Read(buf)
 		if err != nil {
-			// Connection closed — clean up
+			// Check intentional disconnect BEFORE cleanup,
+			// because cleanup calls cancel() which makes ctx.Done() always true.
+			select {
+			case <-ctx.Done():
+				// intentional — Disconnect() already emitted status
+				return
+			default:
+			}
+
+			// Unexpected disconnect — clean up and notify
 			s.mu.Lock()
 			s.running = false
 			s.telnetMode = false
@@ -255,14 +264,8 @@ func (s *TerminalService) readLoop(ctx context.Context) {
 			}
 			s.mu.Unlock()
 
-			// Report error only if not an intentional disconnect
-			select {
-			case <-ctx.Done():
-				// intentional — skip error
-			default:
-				if err != io.EOF {
-					s.pushError("read error: %v", err)
-				}
+			if err != io.EOF {
+				s.pushError("read error: %v", err)
 			}
 			s.pushEvent("terminal:status", false)
 			return
