@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useWailsEvent } from "@/hooks/useEvents";
 import { useI18n } from "@/lib/i18n";
 import { TerminalService } from "../../bindings/github.com/kabirz/modhandlergo/service";
-import { Cable, Plug, Trash2, Terminal as TerminalIcon } from "lucide-react";
+import { Cable, Plug, Trash2, Terminal as TerminalIcon, Globe } from "lucide-react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -38,7 +38,7 @@ const xtermTheme = {
 export function TerminalPage() {
   const { t } = useI18n();
 
-  const [transport, setTransport] = useState<"tcp" | "uart">("tcp");
+  const [transport, setTransport] = useState<"tcp" | "telnet" | "uart">("tcp");
   const [host, setHost] = useState("192.168.1.100");
   const [tcpPort, setTcpPort] = useState("23");
   const [uartPort, setUartPort] = useState("");
@@ -79,7 +79,25 @@ export function TerminalPage() {
     // Delay fit to let layout settle first
     requestAnimationFrame(() => fitAddon.fit());
 
-    // Intercept Backspace: xterm sends \x7f (DEL) by default,
+    // Intercept printable chars in DOM capturing phase to suppress local echo.
+    // By preventing the event from reaching xterm's internal textarea,
+    // the character is never rendered locally and onData does not fire.
+    const onRawKey = (e: KeyboardEvent) => {
+      if (!connectedRef.current) return;
+      if (
+        e.key.length === 1 &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        TerminalService.Send(e.key).catch(() => {});
+      }
+    };
+    termRef.current.addEventListener("keydown", onRawKey, true);
+
+    // Backspace: xterm sends \x7f (DEL) by default,
     // but most embedded devices expect \b (0x08).
     term.attachCustomKeyEventHandler((event) => {
       if (event.type === "keydown" && event.key === "Backspace") {
@@ -91,7 +109,8 @@ export function TerminalPage() {
       return true;
     });
 
-    // User input → backend
+    // User input → backend (only non-printable keys reach here:
+    // Enter, arrows, Ctrl+C, Tab, etc.)
     term.onData((data) => {
       if (connectedRef.current) {
         TerminalService.Send(data).catch(() => {});
@@ -106,6 +125,7 @@ export function TerminalPage() {
 
     return () => {
       window.removeEventListener("resize", onResize);
+      termRef.current?.removeEventListener("keydown", onRawKey, true);
       ro.disconnect();
       term.dispose();
       xtermRef.current = null;
@@ -136,7 +156,9 @@ export function TerminalPage() {
 
   useWailsEvent<boolean>("terminal:status", (running) => {
     setConnected(running);
-    if (!running) appendOutput("\r\n\x1b[31m── Disconnected ──\x1b[0m\r\n");
+    if (!running) {
+      appendOutput("\r\n\x1b[31m── Disconnected ──\x1b[0m\r\n");
+    }
   });
 
   useWailsEvent<string>("terminal:data", (data) => {
@@ -149,12 +171,20 @@ export function TerminalPage() {
 
   const handleConnect = async () => {
     try {
-      if (transport === "tcp") {
+      if (transport === "telnet") {
+        await TerminalService.ConnectTelnet(host, parseInt(tcpPort) || 23);
+      } else if (transport === "tcp") {
         await TerminalService.ConnectTCP(host, parseInt(tcpPort) || 23);
       } else {
         await TerminalService.ConnectUART(uartPort, parseInt(baudRate) || 115200);
       }
-      appendOutput(`\r\n── Connected (${transport === "tcp" ? `${host}:${tcpPort}` : `${uartPort}@${baudRate}`}) ──\r\n`);
+      const label =
+        transport === "uart"
+          ? `${uartPort}@${baudRate}`
+          : transport === "telnet"
+            ? `telnet://${host}:${tcpPort}`
+            : `tcp://${host}:${tcpPort}`;
+      appendOutput(`\r\n── Connected (${label}) ──\r\n`);
     } catch (err: any) {
       appendOutput(`\r\n\x1b[31m[ERR] ${err}\x1b[0m\r\n`);
     }
@@ -180,13 +210,16 @@ export function TerminalPage() {
                 <Button size="sm" variant={transport === "tcp" ? "default" : "outline"} className="h-7 text-xs px-3" disabled={connected} onClick={() => setTransport("tcp")}>
                   <Cable className="h-3 w-3 mr-1" /> TCP
                 </Button>
+                <Button size="sm" variant={transport === "telnet" ? "default" : "outline"} className="h-7 text-xs px-3" disabled={connected} onClick={() => setTransport("telnet")}>
+                  <Globe className="h-3 w-3 mr-1" /> {t("terminal.telnet")}
+                </Button>
                 <Button size="sm" variant={transport === "uart" ? "default" : "outline"} className="h-7 text-xs px-3" disabled={connected} onClick={() => setTransport("uart")}>
                   <TerminalIcon className="h-3 w-3 mr-1" /> UART
                 </Button>
               </div>
             </div>
 
-            {transport === "tcp" && (
+            {(transport === "tcp" || transport === "telnet") && (
               <>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-muted-foreground">{t("terminal.host")}</label>

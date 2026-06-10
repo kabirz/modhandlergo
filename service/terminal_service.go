@@ -12,16 +12,33 @@ import (
 	"go.bug.st/serial"
 )
 
+// ── Telnet protocol constants ──
+
+const (
+	telnetIAC  byte = 0xFF // Interpret As Command
+	telnetWILL byte = 0xFB
+	telnetWONT byte = 0xFC
+	telnetDO   byte = 0xFD
+	telnetDONT byte = 0xFE
+	telnetSB   byte = 0xFA // Sub-negotiation Begin
+	telnetSE   byte = 0xF0 // Sub-negotiation End
+	telnetNOP  byte = 0xF1
+
+	optEcho byte = 0x01 // ECHO
+	optSGA  byte = 0x03 // Suppress Go Ahead
+)
+
 // ── Public types (exported for TypeScript binding) ──
 
 type TransportType string
 
 const (
-	TransportTCP  TransportType = "tcp"
-	TransportUART TransportType = "uart"
+	TransportTCP    TransportType = "tcp"
+	TransportTelnet TransportType = "telnet"
+	TransportUART   TransportType = "uart"
 )
 
-// TerminalService provides a raw terminal over TCP or UART,
+// TerminalService provides a raw terminal over TCP, Telnet, or UART,
 // similar to a serial terminal or Telnet client.
 type TerminalService struct {
 	app *application.App
@@ -32,6 +49,9 @@ type TerminalService struct {
 	trans   TransportType
 	address string
 	running bool
+
+	// Telnet mode
+	telnetMode bool
 
 	// UART-specific
 	portName string
@@ -66,6 +86,34 @@ func (s *TerminalService) ConnectTCP(host string, port int) error {
 	s.trans = TransportTCP
 	s.address = addr
 	s.running = true
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	go s.readLoop(ctx)
+
+	s.emitStatus(true)
+	return nil
+}
+
+// ConnectTelnet connects to a TCP host:port with Telnet IAC negotiation.
+func (s *TerminalService) ConnectTelnet(host string, port int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.running {
+		return fmt.Errorf("already connected")
+	}
+
+	addr := fmt.Sprintf("%s:%d", host, port)
+	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	if err != nil {
+		return fmt.Errorf("Telnet connect failed: %w", err)
+	}
+
+	s.conn = conn
+	s.trans = TransportTelnet
+	s.address = addr
+	s.running = true
+	s.telnetMode = true
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	go s.readLoop(ctx)
@@ -120,6 +168,7 @@ func (s *TerminalService) Disconnect() error {
 		return nil
 	}
 	s.running = false
+	s.telnetMode = false
 	if s.cancel != nil {
 		s.cancel()
 	}
@@ -185,6 +234,7 @@ func (s *TerminalService) readLoop(ctx context.Context) {
 
 		s.mu.Lock()
 		conn := s.conn
+		telnet := s.telnetMode
 		s.mu.Unlock()
 		if conn == nil {
 			return
@@ -195,6 +245,7 @@ func (s *TerminalService) readLoop(ctx context.Context) {
 			// Connection closed — clean up
 			s.mu.Lock()
 			s.running = false
+			s.telnetMode = false
 			if s.cancel != nil {
 				s.cancel()
 			}
@@ -217,9 +268,121 @@ func (s *TerminalService) readLoop(ctx context.Context) {
 			return
 		}
 		if n > 0 {
-			s.pushEvent("terminal:data", string(buf[:n]))
+			if telnet {
+				s.handleTelnetData(buf[:n])
+			} else {
+				s.pushEvent("terminal:data", string(buf[:n]))
+			}
 		}
 	}
+}
+
+// ── Telnet IAC handling ──
+
+// handleTelnetData parses IAC sequences from raw Telnet data,
+// responds to negotiations, and emits only clean text to the frontend.
+func (s *TerminalService) handleTelnetData(data []byte) {
+	var clean []byte
+	i := 0
+	for i < len(data) {
+		if data[i] != telnetIAC {
+			clean = append(clean, data[i])
+			i++
+			continue
+		}
+		// IAC found — need at least 2 bytes
+		if i+1 >= len(data) {
+			// Trailing IAC at buffer boundary, keep for next read
+			clean = append(clean, data[i])
+			break
+		}
+		cmd := data[i+1]
+
+		// IAC IAC → escaped 0xFF literal
+		if cmd == telnetIAC {
+			clean = append(clean, 0xFF)
+			i += 2
+			continue
+		}
+
+		// 3-byte commands: WILL/WONT/DO/DONT
+		if cmd == telnetWILL || cmd == telnetWONT || cmd == telnetDO || cmd == telnetDONT {
+			if i+2 >= len(data) {
+				break // incomplete, wait for more data
+			}
+			opt := data[i+2]
+			s.handleTelnetCommand(cmd, opt)
+			i += 3
+			continue
+		}
+
+		// Sub-negotiation: IAC SB ... IAC SE
+		if cmd == telnetSB {
+			end := bytesIndexIACSE(data[i+2:])
+			if end < 0 {
+				// Incomplete sub-negotiation — skip for now
+				i = len(data)
+				continue
+			}
+			// Skip entire sub-negotiation (i+2 + end + 2 for IAC SE)
+			i += 2 + end + 2
+			continue
+		}
+
+		// 2-byte commands (NOP, BRK, etc.) — skip
+		i += 2
+	}
+
+	if len(clean) > 0 {
+		s.pushEvent("terminal:data", string(clean))
+	}
+}
+
+// handleTelnetCommand responds to a single WILL/WONT/DO/DONT negotiation.
+func (s *TerminalService) handleTelnetCommand(cmd, opt byte) {
+	s.mu.Lock()
+	conn := s.conn
+	s.mu.Unlock()
+	if conn == nil {
+		return
+	}
+
+	var resp []byte
+	switch cmd {
+	case telnetDO:
+		if opt == optSGA {
+			// We will suppress go-ahead
+			resp = []byte{telnetIAC, telnetWILL, opt}
+		} else {
+			resp = []byte{telnetIAC, telnetWONT, opt}
+		}
+	case telnetDONT:
+		// No response needed
+	case telnetWILL:
+		if opt == optEcho || opt == optSGA {
+			resp = []byte{telnetIAC, telnetDO, opt}
+		} else {
+			resp = []byte{telnetIAC, telnetDONT, opt}
+		}
+	case telnetWONT:
+		// No response needed
+	}
+
+	if len(resp) > 0 {
+		// Best-effort write; ignore errors (connection may close)
+		_, _ = conn.Write(resp)
+	}
+}
+
+// bytesIndexIACSE searches for IAC SE pattern in data, returns the offset
+// of IAC relative to the start of data (not including the IAC itself).
+func bytesIndexIACSE(data []byte) int {
+	for i := 0; i < len(data)-1; i++ {
+		if data[i] == telnetIAC && data[i+1] == telnetSE {
+			return i
+		}
+	}
+	return -1
 }
 
 func (s *TerminalService) emitStatus(running bool) {

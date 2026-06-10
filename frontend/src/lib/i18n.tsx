@@ -156,6 +156,7 @@ const dict: Record<string, Record<Lang, string>> = {
   // Terminal
   "nav.terminal":             { zh: "终端",         en: "Terminal" },
   "terminal.host":            { zh: "主机",         en: "Host" },
+  "terminal.telnet":          { zh: "Telnet",       en: "Telnet" },
   "terminal.transport":       { zh: "连接方式",     en: "Transport" },
   "terminal.connect":         { zh: "连接",         en: "Connect" },
   "terminal.disconnect":      { zh: "断开",         en: "Disconnect" },
