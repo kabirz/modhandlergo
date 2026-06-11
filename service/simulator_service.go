@@ -23,6 +23,9 @@ const (
 	fwCodeTransferErr  = 5
 )
 
+// Heartbeat status byte: device is running normally.
+const heartbeatStatusRunning byte = 0x05
+
 // SimulatorConfig holds parameters for the CAN device simulator.
 type SimulatorConfig struct {
 	Channel         string  `json:"channel"`
@@ -386,7 +389,7 @@ func (s *SimulatorService) sendFrame(id uint32, data []byte) {
 // ── Periodic goroutines ──
 
 func (s *SimulatorService) heartbeatLoop(ctx context.Context) {
-	frame := &canhal.Frame{ID: canmanager.Heartbeat, DLC: 1, Data: [8]byte{5}}
+	frame := &canhal.Frame{ID: canmanager.Heartbeat, DLC: 1, Data: [8]byte{heartbeatStatusRunning}}
 	for {
 		s.sendFrame(frame.ID, frame.Data[:frame.DLC])
 		select {

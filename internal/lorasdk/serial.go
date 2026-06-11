@@ -223,11 +223,17 @@ func (s *SerialClient) enterATMode() {
 }
 
 func (s *SerialClient) exitATMode() {
-	if s.port == nil {
+	s.mu.Lock()
+	port := s.port
+	s.mu.Unlock()
+
+	if port == nil {
 		return
 	}
 
-	s.port.Write([]byte("AT+EXIT\r\n"))
+	_, _ = port.Write([]byte("AT+EXIT\r\n"))
 	time.Sleep(100 * time.Millisecond)
+	s.mu.Lock()
 	s.atMode = false
+	s.mu.Unlock()
 }

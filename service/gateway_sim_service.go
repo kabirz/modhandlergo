@@ -433,7 +433,11 @@ func (s *GatewaySimService) sendToClient(nid uint32, payload []byte) {
 		return
 	}
 	pkt := buildRXPacket(nid, payload)
-	conn.Write(pkt)
+	if _, err := conn.Write(pkt); err != nil {
+		s.mu.Lock()
+		s.stats.err++
+		s.mu.Unlock()
+	}
 	s.mu.Lock()
 	s.stats.tx++
 	s.mu.Unlock()
@@ -493,9 +497,12 @@ func (s *GatewaySimService) udpLoop(ctx context.Context) {
 
 		resp := s.handleUDP(raw)
 		if resp != nil {
-			s.udpConn.WriteToUDP(resp, addr)
-			s.logf("[%s] [UDP] TX -> %s: response sent",
-				time.Now().Format("15:04:05"), addr)
+			if _, err := s.udpConn.WriteToUDP(resp, addr); err != nil {
+				s.logf("[%s] [UDP] TX to %s failed: %v", time.Now().Format("15:04:05"), addr, err)
+			} else {
+				s.logf("[%s] [UDP] TX -> %s: response sent",
+					time.Now().Format("15:04:05"), addr)
+			}
 		}
 	}
 }

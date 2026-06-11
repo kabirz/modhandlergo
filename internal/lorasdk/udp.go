@@ -121,6 +121,7 @@ func (u *UDPClient) udpSendCore(payload []byte) []string {
 		localAddr := &net.UDPAddr{IP: ip}
 		conn, err := net.ListenUDP("udp4", localAddr)
 		if err != nil {
+			u.cb.OnLog(fmt.Sprintf("bind UDP on %s failed: %v", ip, err), LogUDP)
 			continue
 		}
 

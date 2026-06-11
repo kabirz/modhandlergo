@@ -78,7 +78,7 @@ export function LoRaConfigPage() {
   const [logs, setLogs] = useState<{ id: number; text: string }[]>([]);
   let logIdCounter = 0;
 
-  const addLog = useCallback((msg: string) => { setLogs((prev) => [...prev.slice(-200), { id: logIdCounter++, text: msg }]); }, []);
+  const addLog = useCallback((msg: string) => { setLogs((prev) => [...prev.slice(-500), { id: logIdCounter++, text: msg }]); }, []);
 
   useWailsEvent<any>("lora:device", (data) => {
     if (data?.mac) setDevMac(data.mac);

@@ -191,16 +191,17 @@ func (m *Manager) Disconnect() {
 func (m *Manager) GetFirmwareVersion() (uint32, error) {
 	m.mu.Lock()
 	err := m.requireConnected()
+	virtualMode := m.virtualMode
+	m.mu.Unlock()
+
 	if err != nil {
-		m.mu.Unlock()
 		return 0, err
 	}
-	if m.virtualMode {
-		m.mu.Unlock()
+
+	if virtualMode {
 		m.log("Firmware version: v1.0.0 (virtual CAN)")
 		return 0x01000000, nil
 	}
-	m.mu.Unlock()
 
 	version, err := upgrade.GetVersion(m)
 	if err != nil {
@@ -213,16 +214,17 @@ func (m *Manager) GetFirmwareVersion() (uint32, error) {
 func (m *Manager) BoardReboot() error {
 	m.mu.Lock()
 	err := m.requireConnected()
+	virtualMode := m.virtualMode
+	m.mu.Unlock()
+
 	if err != nil {
-		m.mu.Unlock()
 		return err
 	}
-	if m.virtualMode {
-		m.mu.Unlock()
+
+	if virtualMode {
 		m.log("Virtual board reboot successful")
 		return nil
 	}
-	m.mu.Unlock()
 
 	return upgrade.Reboot(m)
 }
@@ -261,11 +263,14 @@ func (m *Manager) virtualFirmwareUpgrade(filePath string) error {
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("cannot open source firmware file")
+		return fmt.Errorf("cannot open source firmware file: %w", err)
 	}
 	defer f.Close()
 
-	fi, _ := f.Stat()
+	fi, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("cannot get file info: %w", err)
+	}
 	fileSize := fi.Size()
 	m.log(fmt.Sprintf("Starting firmware upgrade, size: %d bytes", fileSize))
 	m.log("Output file: virtual_firmware.bin")

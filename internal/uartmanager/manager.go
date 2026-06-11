@@ -296,7 +296,11 @@ func (m *Manager) Read(buf []byte) (int, error) {
 	if m.port == nil {
 		return 0, io.ErrClosedPipe
 	}
-	return m.port.Read(buf)
+	n, err := m.port.Read(buf)
+	if err != nil && err != io.EOF {
+		return n, fmt.Errorf("serial read failed: %w", err)
+	}
+	return n, err
 }
 
 // extractPortNum extracts the trailing number from a port name like "COM3" or "/dev/ttyUSB0".

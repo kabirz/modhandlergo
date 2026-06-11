@@ -95,6 +95,11 @@ func (s *TerminalService) ConnectTCP(host string, port int) error {
 		return fmt.Errorf("TCP connect failed: %w", err)
 	}
 
+	if tc, ok := conn.(*net.TCPConn); ok {
+		tc.SetKeepAlive(true)
+		tc.SetKeepAlivePeriod(30 * time.Second)
+	}
+
 	s.conn = conn
 	s.trans = TransportTCP
 	s.address = addr
@@ -120,6 +125,11 @@ func (s *TerminalService) ConnectTelnet(host string, port, cols, rows int) error
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("Telnet connect failed: %w", err)
+	}
+
+	if tc, ok := conn.(*net.TCPConn); ok {
+		tc.SetKeepAlive(true)
+		tc.SetKeepAlivePeriod(30 * time.Second)
 	}
 
 	s.conn = conn
@@ -360,14 +370,11 @@ func (s *TerminalService) handleTelnetData(data []byte) {
 
 // handleTelnetCommand responds to a single WILL/WONT/DO/DONT negotiation.
 func (s *TerminalService) handleTelnetCommand(cmd, opt byte) {
+	var resp []byte
+	var nawsConn io.Writer
+
 	s.mu.Lock()
 	conn := s.conn
-	s.mu.Unlock()
-	if conn == nil {
-		return
-	}
-
-	var resp []byte
 	switch cmd {
 	case telnetDO:
 		switch opt {
@@ -376,12 +383,10 @@ func (s *TerminalService) handleTelnetCommand(cmd, opt byte) {
 		default:
 			resp = []byte{telnetIAC, telnetWONT, opt}
 		}
-		// After agreeing to NAWS, send current window size immediately
 		if opt == optNAWS {
-			s.sendNAWS(conn)
+			nawsConn = conn
 		}
 	case telnetDONT:
-		// No response needed
 	case telnetWILL:
 		if opt == optEcho || opt == optSGA {
 			resp = []byte{telnetIAC, telnetDO, opt}
@@ -389,12 +394,18 @@ func (s *TerminalService) handleTelnetCommand(cmd, opt byte) {
 			resp = []byte{telnetIAC, telnetDONT, opt}
 		}
 	case telnetWONT:
-		// No response needed
 	}
+	s.mu.Unlock()
 
-	if len(resp) > 0 {
-		// Best-effort write; ignore errors (connection may close)
+	if len(resp) > 0 && conn != nil {
 		_, _ = conn.Write(resp)
+	}
+	if nawsConn != nil {
+		s.mu.Lock()
+		cols := s.cols
+		rows := s.rows
+		s.mu.Unlock()
+		writeNAWS(nawsConn, cols, rows)
 	}
 }
 

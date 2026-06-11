@@ -52,7 +52,7 @@ func (s *CANUpgradeService) ServiceStartup(ctx context.Context, opts application
 func (s *CANUpgradeService) DetectCANDevices() ([]int, error) {
 	mgr := s.ensureCANManager()
 	if mgr == nil {
-		return nil, fmt.Errorf("CAN HAL 未初始化")
+		return nil, fmt.Errorf("CAN HAL not initialized")
 	}
 	return mgr.DetectDevices()
 }
@@ -63,7 +63,7 @@ func (s *CANUpgradeService) DetectCANDevices() ([]int, error) {
 func (s *CANUpgradeService) ConnectCAN(channel int, baudIndex int) error {
 	mgr := s.ensureCANManager()
 	if mgr == nil {
-		return fmt.Errorf("CAN HAL 未初始化")
+		return fmt.Errorf("CAN HAL not initialized")
 	}
 	mgr.SetLogCallback(func(msg string) {
 		if s.app != nil {
@@ -101,7 +101,7 @@ func (s *CANUpgradeService) DisconnectCAN() {
 func (s *CANUpgradeService) CANFirmwareUpgrade(filePath string, testMode bool) error {
 	mgr := s.ensureCANManager()
 	if mgr == nil {
-		return fmt.Errorf("CAN HAL 未初始化")
+		return fmt.Errorf("CAN HAL not initialized")
 	}
 	return mgr.FirmwareUpgrade(filePath, testMode)
 }
@@ -110,7 +110,7 @@ func (s *CANUpgradeService) CANFirmwareUpgrade(filePath string, testMode bool) e
 func (s *CANUpgradeService) CANGetFirmwareVersion() (string, error) {
 	mgr := s.ensureCANManager()
 	if mgr == nil {
-		return "", fmt.Errorf("CAN HAL 未初始化")
+		return "", fmt.Errorf("CAN HAL not initialized")
 	}
 	version, err := mgr.GetFirmwareVersion()
 	if err != nil {
@@ -123,7 +123,7 @@ func (s *CANUpgradeService) CANGetFirmwareVersion() (string, error) {
 func (s *CANUpgradeService) CANBoardReboot() error {
 	mgr := s.ensureCANManager()
 	if mgr == nil {
-		return fmt.Errorf("CAN HAL 未初始化")
+		return fmt.Errorf("CAN HAL not initialized")
 	}
 	return mgr.BoardReboot()
 }

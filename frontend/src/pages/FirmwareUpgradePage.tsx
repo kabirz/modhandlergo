@@ -48,7 +48,7 @@ export function FirmwareUpgradePage() {
   const [dialogConfig, setDialogConfig] = useState<{ type: "alert" | "confirm"; title: string; message: string; onConfirm?: () => void }>({ type: "alert", title: "", message: "" });
 
   const addLog = useCallback((msg: string) => {
-    setLogs((prev) => [...prev.slice(-200), { id: logIdCounter++, text: msg }]);
+    setLogs((prev) => [...prev.slice(-500), { id: logIdCounter++, text: msg }]);
   }, []);
 
   // Auto-scroll log

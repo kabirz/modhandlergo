@@ -49,6 +49,11 @@ func (t *TCPClient) Connect(ip string, port int) {
 			return
 		}
 
+		if tc, ok := conn.(*net.TCPConn); ok {
+			tc.SetKeepAlive(true)
+			tc.SetKeepAlivePeriod(30 * time.Second)
+		}
+
 		t.mu.Lock()
 		t.conn = conn
 		t.running = true
