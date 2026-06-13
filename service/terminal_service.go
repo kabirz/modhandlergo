@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -25,10 +26,10 @@ const (
 	telnetSE   byte = 0xF0 // Sub-negotiation End
 	telnetNOP  byte = 0xF1
 
-	optEcho    byte = 0x01 // ECHO
-	optSGA     byte = 0x03 // Suppress Go Ahead
-	optTType   byte = 0x18 // TERMINAL-TYPE
-	optNAWS    byte = 0x1F // Negotiate About Window Size
+	optEcho  byte = 0x01 // ECHO
+	optSGA   byte = 0x03 // Suppress Go Ahead
+	optTType byte = 0x18 // TERMINAL-TYPE
+	optNAWS  byte = 0x1F // Negotiate About Window Size
 
 	telnetSubIS   byte = 0 // Sub-negotiation: IS (client sends term type)
 	telnetSubSend byte = 1 // Sub-negotiation: SEND (server requests term type)
@@ -409,15 +410,13 @@ func (s *TerminalService) handleTelnetCommand(cmd, opt byte) {
 	}
 }
 
-// bytesIndexIACSE searches for IAC SE pattern in data, returns the offset
-// of IAC relative to the start of data (not including the IAC itself).
+// iacSE is the Telnet sub-negotiation terminator sequence (IAC SE).
+var iacSE = []byte{telnetIAC, telnetSE}
+
+// bytesIndexIACSE searches for the IAC SE terminator in data and returns the
+// offset of IAC relative to the start of data (excluding IAC itself).
 func bytesIndexIACSE(data []byte) int {
-	for i := 0; i < len(data)-1; i++ {
-		if data[i] == telnetIAC && data[i+1] == telnetSE {
-			return i
-		}
-	}
-	return -1
+	return bytes.Index(data, iacSE)
 }
 
 // handleTelnetSubneg processes a sub-negotiation payload (content between SB and IAC SE).

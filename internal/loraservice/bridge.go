@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kabirz/modhandlergo/internal/lorasdk"
@@ -15,6 +16,7 @@ import (
 type Bridge struct {
 	app            *application.App
 	sdk            *lorasdk.SDK
+	mu             sync.Mutex // guards pendingRSSiNID
 	pendingRSSiNID uint32
 }
 
@@ -308,7 +310,9 @@ func (b *Bridge) queryAndSendRSSI(nid uint32) {
 	if b.sdk == nil {
 		return
 	}
+	b.mu.Lock()
 	b.pendingRSSiNID = nid
+	b.mu.Unlock()
 	go func() {
 		b.sdk.QueryRSSI("", nid)
 	}()
@@ -322,7 +326,9 @@ func (b *Bridge) handleNINFO(info string) {
 		return
 	}
 
+	b.mu.Lock()
 	nid := b.pendingRSSiNID
+	b.mu.Unlock()
 	if nid == 0 || b.sdk == nil {
 		return
 	}
@@ -344,7 +350,9 @@ func (b *Bridge) handleNINFO(info string) {
 	testFlag := byte(b.sdk.GetTestFlag())
 
 	b.sdk.SendRSSIResponse(nid, snrRaw, rssiRaw, testFlag)
+	b.mu.Lock()
 	b.pendingRSSiNID = 0
+	b.mu.Unlock()
 	b.emit("lora:log", map[string]any{"msg": fmt.Sprintf("[%s] RSSI response sent: SNR=%d, RSSI=%d", time.Now().Format("15:04:05.000"), snrVal, rssiVal), "src": 0})
 }
 

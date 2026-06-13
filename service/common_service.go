@@ -81,7 +81,7 @@ func (s *CommonService) SetAdapterType(adapterType int) error {
 		return fmt.Errorf("adapter type %d not available on this platform", adapterType)
 	}
 
-	dispatcher := candispatcher.New(backend)
+	dispatcher := candispatcher.New(backend, canmanager.PlatformTx)
 	wrapped := &notifyingBackend{Backend: backend, onWrite: s.onFrameSent}
 
 	s.adapterType = at

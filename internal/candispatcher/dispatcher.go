@@ -15,8 +15,9 @@ import (
 // Dispatcher manages a single CAN read goroutine and distributes
 // received frames to subscribers and synchronous waiters.
 type Dispatcher struct {
-	backend canhal.Backend
-	cancel  context.CancelFunc
+	backend    canhal.Backend
+	cancel     context.CancelFunc
+	responseID uint32 // frame ID treated as a protocol response (buffered for late WaitFrame)
 
 	// Pub/sub: subscribers receive every frame read.
 	mu          sync.RWMutex
@@ -40,10 +41,14 @@ type Dispatcher struct {
 	cbPool sync.Pool
 }
 
-// New creates a new Dispatcher for the given CAN backend.
-func New(backend canhal.Backend) *Dispatcher {
+// New creates a new Dispatcher for the given CAN backend. responseID is the
+// frame ID treated as a protocol response: such frames are buffered briefly so
+// a WaitFrame call arming just after arrival can still observe them. Other IDs
+// are still fanned out to subscribers but not buffered.
+func New(backend canhal.Backend, responseID uint32) *Dispatcher {
 	return &Dispatcher{
 		backend:     backend,
+		responseID:  responseID,
 		subscribers: make(map[uint64]func(*canhal.Frame)),
 		waitCh:      make(chan *canhal.Frame, 1),
 		cbPool: sync.Pool{
@@ -97,41 +102,30 @@ func (d *Dispatcher) Subscribe(cb func(*canhal.Frame)) func() {
 // FeedFrame injects a frame into the dispatcher as if it was read from the backend.
 // Used by the simulator to make response frames visible to WaitFrame and subscribers.
 func (d *Dispatcher) FeedFrame(frame *canhal.Frame) {
-	// 1. Try synchronous waiter first
-	d.waitMu.Lock()
-	if d.waitID != 0 && frame.ID == d.waitID {
-		d.waitID = 0
-		d.waitMu.Unlock()
-		select {
-		case d.waitCh <- frame:
-		default:
+	d.dispatch(frame)
+}
+
+// dispatch delivers a frame to an armed synchronous waiter, buffers response
+// frames for late WaitFrame callers, then fans out to all subscribers.
+// Shared by FeedFrame (in-process injection) and readLoop (backend reads).
+func (d *Dispatcher) dispatch(frame *canhal.Frame) {
+	// 1. Try the synchronous waiter (first attempt).
+	if !d.tryDeliver(frame) {
+		// 2. Buffer response-class frames so a WaitFrame arming right after
+		//    this still observes it. Background frames (heartbeat, controller
+		//    state) are skipped to avoid clobbering pending responses.
+		if frame.ID == d.responseID {
+			d.pendingMu.Lock()
+			if len(d.pendingBuf) < 4 {
+				d.pendingBuf = append(d.pendingBuf, frame)
+			}
+			d.pendingMu.Unlock()
 		}
-		goto fanout
-	}
-	d.waitMu.Unlock()
-
-	// 2. Buffer in pending (multi-slot — background goroutines won't clobber responses)
-	d.pendingMu.Lock()
-	if len(d.pendingBuf) < 4 {
-		d.pendingBuf = append(d.pendingBuf, frame)
-	}
-	d.pendingMu.Unlock()
-
-	// 3. Re-check waiter (race: WaitFrame may have armed between step 1 and 2)
-	d.waitMu.Lock()
-	if d.waitID != 0 && frame.ID == d.waitID {
-		d.waitID = 0
-		d.waitMu.Unlock()
-		select {
-		case d.waitCh <- frame:
-		default:
-		}
-	} else {
-		d.waitMu.Unlock()
+		// 3. Re-check waiter: WaitFrame may have armed between steps 1 and 2.
+		d.tryDeliver(frame)
 	}
 
-fanout:
-	// 4. Fan out to all async subscribers
+	// 4. Fan out to all async subscribers (copy under RLock, invoke outside).
 	sp := d.cbPool.Get().(*[]func(*canhal.Frame))
 	cbs := (*sp)[:0]
 	d.mu.RLock()
@@ -144,6 +138,24 @@ fanout:
 	}
 	*sp = cbs
 	d.cbPool.Put(sp)
+}
+
+// tryDeliver hands frame to an armed waiter whose expected ID matches frame.ID.
+// Returns true if a waiter was armed and matched (frame sent to waitCh).
+func (d *Dispatcher) tryDeliver(frame *canhal.Frame) bool {
+	d.waitMu.Lock()
+	matched := d.waitID != 0 && frame.ID == d.waitID
+	if matched {
+		d.waitID = 0
+	}
+	d.waitMu.Unlock()
+	if matched {
+		select {
+		case d.waitCh <- frame:
+		default:
+		}
+	}
+	return matched
 }
 
 // WaitFrame blocks until a frame with the expected ID arrives or timeout.
@@ -198,43 +210,6 @@ func (d *Dispatcher) readLoop(ctx context.Context) {
 			continue
 		}
 
-		// 1. Check synchronous waiter
-		d.waitMu.Lock()
-		if d.waitID != 0 && frame.ID == d.waitID {
-			d.waitID = 0
-			d.waitMu.Unlock()
-			select {
-			case d.waitCh <- frame:
-			default:
-			}
-		} else {
-			d.waitMu.Unlock()
-			// No waiter armed — buffer one frame for late WaitFrame calls.
-			// Only buffer if it matches a typical response ID (0x102 PlatformTx).
-			d.pendingMu.Lock()
-			if len(d.pendingBuf) < 4 {
-				d.pendingBuf = append(d.pendingBuf, frame)
-			}
-			d.pendingMu.Unlock()
-		}
-
-		// 2. Fan out to all async subscribers (copy under RLock, invoke outside)
-		//    Use sync.Pool to reuse the callback slice across iterations.
-		sp := d.cbPool.Get().(*[]func(*canhal.Frame))
-		cbs := (*sp)[:0]
-
-		d.mu.RLock()
-		for _, cb := range d.subscribers {
-			cbs = append(cbs, cb)
-		}
-		d.mu.RUnlock()
-
-		for _, cb := range cbs {
-			cb(frame)
-		}
-
-		// Return the slice to the pool (reset length but keep capacity).
-		*sp = cbs
-		d.cbPool.Put(sp)
+		d.dispatch(frame)
 	}
 }

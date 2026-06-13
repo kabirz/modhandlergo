@@ -307,7 +307,7 @@ func (m *Manager) Read(buf []byte) (int, error) {
 func extractPortNum(name string) int {
 	// Strip common prefixes
 	for _, prefix := range []string{"COM", "com", "ttyUSB", "ttyACM", "/dev/"} {
-		if after, ok :=strings.CutPrefix(name, prefix); ok  {
+		if after, ok := strings.CutPrefix(name, prefix); ok {
 			name = after
 			break
 		}

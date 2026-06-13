@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -15,12 +15,12 @@ import (
 
 // Firmware response codes (matching embedded mod-can.h fw_error_code)
 const (
-	fwCodeOffset       = 0
-	fwCodeSuccess      = 1
-	fwCodeVersion      = 2
-	fwCodeConfirm      = 3
-	fwCodeFlashError   = 4
-	fwCodeTransferErr  = 5
+	fwCodeOffset      = 0
+	fwCodeSuccess     = 1
+	fwCodeVersion     = 2
+	fwCodeConfirm     = 3
+	fwCodeFlashError  = 4
+	fwCodeTransferErr = 5
 )
 
 // Heartbeat status byte: device is running normally.
@@ -45,38 +45,38 @@ type SimulatorService struct {
 	unsub   func()
 
 	// Device state
-	version     uint32
-	fwOffset    uint32
-	fwTotal     uint32
-	fwData      []byte
-	upgrading   bool
+	version   uint32
+	fwOffset  uint32
+	fwTotal   uint32
+	fwData    []byte
+	upgrading bool
 
 	// LoRa config state
-	loraProt uint8
-	loraMode uint8
-	loraSpd1 uint8
-	loraCh1  uint16
-	loraSpd2 uint8
-	loraCh2  uint16
-	loraPnum uint8
-	loraNID  uint32
-	loraGWID uint32
-	loraTest bool
+	loraProt  uint8
+	loraMode  uint8
+	loraSpd1  uint8
+	loraCh1   uint16
+	loraSpd2  uint8
+	loraCh2   uint16
+	loraPnum  uint8
+	loraNID   uint32
+	loraGWID  uint32
+	loraTest  bool
 	loraPower bool
 }
 
 func NewSimulatorService(common *CommonService) *SimulatorService {
 	return &SimulatorService{
-		common:     common,
-		loraProt:   1,
-		loraMode:   2,
-		loraSpd1:   7,
-		loraCh1:    4700,
-		loraSpd2:   7,
-		loraCh2:    4800,
-		loraNID:    0x01020304,
-		loraGWID:   0x11223344,
-		loraPower:  true,
+		common:    common,
+		loraProt:  1,
+		loraMode:  2,
+		loraSpd1:  7,
+		loraCh1:   4700,
+		loraSpd2:  7,
+		loraCh2:   4800,
+		loraNID:   0x01020304,
+		loraGWID:  0x11223344,
+		loraPower: true,
 	}
 }
 
@@ -275,6 +275,19 @@ func (s *SimulatorService) handleLoraConfig(frame *canhal.Frame) {
 	cmd := frame.Data[0]
 	ts := time.Now().Format("15:04:05")
 
+	// Validate DLC for commands that read bytes beyond Data[0]. Query commands
+	// only echo stored state, so DLC>=1 (checked above) is enough for them.
+	switch cmd {
+	case 0x01, 0x0C, 0x0D, 0x0F: // SET_MODE/SET_PNUM/SET_TEST/SET_POWER read Data[1]
+		if frame.DLC < 2 {
+			return
+		}
+	case 0x03, 0x05: // SET_CH1/SET_CH2 read Data[1] and Data[2:4]
+		if frame.DLC < 4 {
+			return
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -405,7 +418,7 @@ func (s *SimulatorService) handlerStateLoop(ctx context.Context, interval time.D
 	for {
 		x := int16(math.Sin(t*0.5) * 90)
 		y := int16(math.Cos(t*0.3) * 60)
-		btn := byte(0x01 | (byte(rand.Intn(2)) << 1))
+		btn := byte(0x01 | (byte(rand.IntN(2)) << 1))
 
 		var data [8]byte
 		canmanager.PutBE16(data[0:2], uint16(x))

@@ -6,8 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,27 +27,27 @@ const (
 // ── Gateway simulator config ──
 
 type gatewayConfig struct {
-	NID       uint32
-	GWID      uint32
-	MAC       string
-	DevName   string
-	SWVer     string
-	IP        string
-	Mask      string
-	GW        string
-	DHCP      string
-	Option    int
-	NWMode    int
-	TTMode    int
-	WMode     int
-	UPWID     string
-	SockEN    string
-	SockA     string
-	CH        map[int]int
-	SPD       map[int]int
-	PWR       map[int]int
-	RSSISNR   int
-	RSSIVal   int
+	NID     uint32
+	GWID    uint32
+	MAC     string
+	DevName string
+	SWVer   string
+	IP      string
+	Mask    string
+	GW      string
+	DHCP    string
+	Option  int
+	NWMode  int
+	TTMode  int
+	WMode   int
+	UPWID   string
+	SockEN  string
+	SockA   string
+	CH      map[int]int
+	SPD     map[int]int
+	PWR     map[int]int
+	RSSISNR int
+	RSSIVal int
 }
 
 func defaultConfig() *gatewayConfig {
@@ -121,9 +122,6 @@ func parseToolFrames(buf []byte) ([]parsedFrame, []byte) {
 			break
 		}
 		idx += pos
-		if idx < 4 {
-			break
-		}
 		tail := bytesIndexOf(buf[idx+2:], '\r', '\n')
 		if tail < 0 {
 			break
@@ -172,19 +170,19 @@ type GatewaySimConfig struct {
 }
 
 type GatewaySimService struct {
-	app     *application.App
-	mu      sync.Mutex
-	cfg     *gatewayConfig
-	running bool
-	cancel  context.CancelFunc
-	tcpLn   net.Listener
-	udpConn *net.UDPConn
-	client  net.Conn
-	clientMu sync.Mutex
+	app             *application.App
+	mu              sync.Mutex
+	cfg             *gatewayConfig
+	running         bool
+	cancel          context.CancelFunc
+	tcpLn           net.Listener
+	udpConn         *net.UDPConn
+	client          net.Conn
+	clientMu        sync.Mutex
 	clientConnected bool
-	stats   struct{ rx, tx, err int }
-	autoTele    bool
-	autoInterval time.Duration
+	stats           struct{ rx, tx, err int }
+	autoTele        bool
+	autoInterval    time.Duration
 }
 
 func NewGatewaySimService() *GatewaySimService {
@@ -211,10 +209,12 @@ func (s *GatewaySimService) Start(config GatewaySimConfig) error {
 
 	cfg := defaultConfig()
 	if config.NID != "" {
-		fmt.Sscanf(config.NID, "%X", &cfg.NID)
+		v, _ := strconv.ParseUint(config.NID, 16, 32)
+		cfg.NID = uint32(v)
 	}
 	if config.GWID != "" {
-		fmt.Sscanf(config.GWID, "%X", &cfg.GWID)
+		v, _ := strconv.ParseUint(config.GWID, 16, 32)
+		cfg.GWID = uint32(v)
 	}
 
 	tcpPort := config.TCPPort
@@ -318,13 +318,19 @@ func (s *GatewaySimService) tcpLoop(ctx context.Context) {
 		s.clientMu.Lock()
 		s.client = conn
 		s.clientConnected = true
-		s.stats = struct{ rx, tx, err int }{}
 		s.clientMu.Unlock()
+		s.mu.Lock()
+		s.stats = struct{ rx, tx, err int }{}
+		s.mu.Unlock()
 		s.logf("[TCP] Client connected: %s", conn.RemoteAddr())
 		s.emitClientState(true)
 
-		go s.autoTeleLoop(ctx)
-		s.handleTCPClient(ctx, conn)
+		// Per-connection context: autoTeleLoop exits when this client
+		// disconnects, preventing goroutine leaks across reconnects.
+		connCtx, connCancel := context.WithCancel(ctx)
+		go s.autoTeleLoop(connCtx)
+		s.handleTCPClient(connCtx, conn)
+		connCancel()
 
 		s.clientMu.Lock()
 		if s.client == conn {
@@ -332,7 +338,9 @@ func (s *GatewaySimService) tcpLoop(ctx context.Context) {
 		}
 		s.clientConnected = false
 		s.clientMu.Unlock()
+		s.mu.Lock()
 		s.autoTele = false
+		s.mu.Unlock()
 		conn.Close()
 		s.logf("[TCP] Client disconnected")
 		s.emitClientState(false)
@@ -356,6 +364,10 @@ func (s *GatewaySimService) handleTCPClient(ctx context.Context, conn net.Conn) 
 			rxBuf = append(rxBuf, tmp[:n]...)
 			frames, remaining := parseToolFrames(rxBuf)
 			rxBuf = remaining
+			// Guard against unbounded growth from malformed/unsynchronized streams
+			if len(rxBuf) > 8192 {
+				rxBuf = rxBuf[len(rxBuf)-4096:]
+			}
 			for _, f := range frames {
 				s.processFrame(f)
 			}
@@ -379,7 +391,7 @@ func (s *GatewaySimService) processFrame(f parsedFrame) {
 	}
 	dtype := f.Payload[0]
 	body := f.Payload[1:]
-	ts := time.Now().Format("15:04:05")
+	ts := nowTS()
 
 	switch dtype {
 	case dataHandler:
@@ -408,9 +420,12 @@ func (s *GatewaySimService) processFrame(f parsedFrame) {
 		}
 	case dataRSSI:
 		if len(body) == 0 {
+			s.mu.Lock()
+			rssi := s.cfg.RSSIVal
+			s.mu.Unlock()
 			s.logf("[%s] RX RSSI Request [%08X]", ts, f.NID)
-			s.sendToClient(f.NID, []byte{dataRSSI, byte(int8(s.cfg.RSSIVal))})
-			s.logf("[%s] TX RSSI Response [%08X] %d dBm", ts, f.NID, s.cfg.RSSIVal)
+			s.sendToClient(f.NID, []byte{dataRSSI, byte(int8(rssi))})
+			s.logf("[%s] TX RSSI Response [%08X] %d dBm", ts, f.NID, rssi)
 		} else {
 			s.logf("[%s] RX RSSI [%08X] %dB: %s", ts, f.NID, len(body),
 				strings.ToUpper(hex.EncodeToString(body)))
@@ -444,21 +459,31 @@ func (s *GatewaySimService) sendToClient(nid uint32, payload []byte) {
 }
 
 func (s *GatewaySimService) autoTeleLoop(ctx context.Context) {
-	ticker := time.NewTicker(s.autoInterval)
+	s.mu.Lock()
+	interval := s.autoInterval
+	s.mu.Unlock()
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if s.autoTele {
-				s.sendTelemetry(rand.Intn(501)-250, rand.Intn(501)-250, rand.Intn(2))
+			s.mu.Lock()
+			auto := s.autoTele
+			s.mu.Unlock()
+			if auto {
+				s.sendTelemetry(rand.IntN(501)-250, rand.IntN(501)-250, rand.IntN(2))
 			}
 		}
 	}
 }
 
 func (s *GatewaySimService) sendTelemetry(x, y, btn int) {
+	s.mu.Lock()
+	nid := s.cfg.NID
+	s.mu.Unlock()
+
 	data := make([]byte, 9)
 	data[0] = dataHandler
 	binary.BigEndian.PutUint16(data[1:3], uint16(int16(x)))
@@ -471,9 +496,9 @@ func (s *GatewaySimService) sendTelemetry(x, y, btn int) {
 	data[6] = 0xFF
 	data[7] = 0xFF
 	data[8] = 0xFF
-	s.sendToClient(s.cfg.NID, data)
+	s.sendToClient(nid, data)
 	s.logf("[%s] TX Telemetry [%08X] X=%.1f Y=%.1f",
-		time.Now().Format("15:04:05"), s.cfg.NID, float64(x)/10, float64(y)/10)
+		nowTS(), nid, float64(x)/10, float64(y)/10)
 }
 
 // ── UDP ──
@@ -493,15 +518,15 @@ func (s *GatewaySimService) udpLoop(ctx context.Context) {
 		}
 		raw := string(buf[:n])
 		s.logf("[%s] [UDP] RX from %s: %s",
-			time.Now().Format("15:04:05"), addr, truncate(raw, 80))
+			nowTS(), addr, truncate(raw, 80))
 
 		resp := s.handleUDP(raw)
 		if resp != nil {
 			if _, err := s.udpConn.WriteToUDP(resp, addr); err != nil {
-				s.logf("[%s] [UDP] TX to %s failed: %v", time.Now().Format("15:04:05"), addr, err)
+				s.logf("[%s] [UDP] TX to %s failed: %v", nowTS(), addr, err)
 			} else {
 				s.logf("[%s] [UDP] TX -> %s: response sent",
-					time.Now().Format("15:04:05"), addr)
+					nowTS(), addr)
 			}
 		}
 	}
@@ -567,6 +592,8 @@ func (s *GatewaySimService) handleAT(atCmd, ackMsg string) []byte {
 }
 
 func (s *GatewaySimService) simulateAT(cmd string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	c := strings.ToUpper(strings.TrimRight(cmd, "\r\n"))
 
 	switch {
@@ -599,22 +626,22 @@ func (s *GatewaySimService) simulateAT(cmd string) string {
 	case c == "AT+OPTION?":
 		return fmt.Sprintf("\r\n+OPTION:%d\r\n\r\nOK\r\n", s.cfg.Option)
 	case strings.HasPrefix(c, "AT+OPTION="):
-		fmt.Sscanf(c[len("AT+OPTION="):], "%d", &s.cfg.Option)
+		s.cfg.Option, _ = strconv.Atoi(c[len("AT+OPTION="):])
 		return "\r\nOK\r\n"
 	case c == "AT+NWMODE?":
 		return fmt.Sprintf("\r\n+NWMODE:%d\r\n\r\nOK\r\n", s.cfg.NWMode)
 	case strings.HasPrefix(c, "AT+NWMODE="):
-		fmt.Sscanf(c[len("AT+NWMODE="):], "%d", &s.cfg.NWMode)
+		s.cfg.NWMode, _ = strconv.Atoi(c[len("AT+NWMODE="):])
 		return "\r\n+NWMODE:OK\r\n"
 	case c == "AT+TTMODE?":
 		return fmt.Sprintf("\r\n+TTMODE:%d\r\n\r\nOK\r\n", s.cfg.TTMode)
 	case strings.HasPrefix(c, "AT+TTMODE="):
-		fmt.Sscanf(c[len("AT+TTMODE="):], "%d", &s.cfg.TTMode)
+		s.cfg.TTMode, _ = strconv.Atoi(c[len("AT+TTMODE="):])
 		return "\r\n+TTMODE:OK\r\n"
 	case c == "AT+WMODE?":
 		return fmt.Sprintf("\r\n+WMODE:%d\r\n\r\nOK\r\n", s.cfg.WMode)
 	case strings.HasPrefix(c, "AT+WMODE="):
-		fmt.Sscanf(c[len("AT+WMODE="):], "%d", &s.cfg.WMode)
+		s.cfg.WMode, _ = strconv.Atoi(c[len("AT+WMODE="):])
 		return "\r\n+WMODE:OK\r\n"
 	case c == "AT+UPWID?":
 		return fmt.Sprintf("\r\n+UPWID:%s\r\n", s.cfg.UPWID)
@@ -635,11 +662,11 @@ func (s *GatewaySimService) simulateAT(cmd string) string {
 		s.cfg.SockA = c[len("AT+SOCKA="):]
 		return "\r\n+SOCKA:OK\r\n"
 	case strings.HasPrefix(c, "AT+CH") && len(c) > 5:
-		return s.handleATCh(c[5:])
+		return s.handleATMapCmd(c[5:], "CH", s.cfg.CH)
 	case strings.HasPrefix(c, "AT+SPD") && len(c) > 6:
-		return s.handleATSpd(c[6:])
+		return s.handleATMapCmd(c[6:], "SPD", s.cfg.SPD)
 	case strings.HasPrefix(c, "AT+PWR") && len(c) > 6:
-		return s.handleATPwr(c[6:])
+		return s.handleATMapCmd(c[6:], "PWR", s.cfg.PWR)
 	case c == "AT+NINFO?":
 		nidHigh := s.cfg.NID >> 16
 		nidLow := s.cfg.NID & 0xFFFF
@@ -648,62 +675,29 @@ func (s *GatewaySimService) simulateAT(cmd string) string {
 	case c == "AT+NID?":
 		return fmt.Sprintf("\r\n+NID:%08X\r\n\r\nOK\r\n", s.cfg.NID)
 	case strings.HasPrefix(c, "AT+GWID="):
-		fmt.Sscanf(c[len("AT+GWID="):], "%X", &s.cfg.GWID)
+		v, _ := strconv.ParseUint(c[len("AT+GWID="):], 16, 32)
+		s.cfg.GWID = uint32(v)
 		return "\r\nOK\r\n"
 	case strings.HasPrefix(c, "AT+NID="):
-		fmt.Sscanf(c[len("AT+NID="):], "%X", &s.cfg.NID)
+		v, _ := strconv.ParseUint(c[len("AT+NID="):], 16, 32)
+		s.cfg.NID = uint32(v)
 		return "\r\nOK\r\n"
 	}
 	return "\r\nOK\r\n"
 }
 
-func (s *GatewaySimService) handleATCh(rest string) string {
+// handleATMapCmd handles the AT+CH / AT+SPD / AT+PWR family, which all share
+// the same "<n>=<val>" set form and "<n>?" query form over a map[int]int.
+func (s *GatewaySimService) handleATMapCmd(rest, tag string, m map[int]int) string {
 	if before, after, ok := strings.Cut(rest, "="); ok {
-		var n, val int
-		fmt.Sscanf(before, "%d", &n)
-		fmt.Sscanf(after, "%d", &val)
-		s.cfg.CH[n] = val
-		return fmt.Sprintf("\r\n+CH%d:OK\r\n", n)
+		n, _ := strconv.Atoi(before)
+		val, _ := strconv.Atoi(after)
+		m[n] = val
+		return fmt.Sprintf("\r\n+%s%d:OK\r\n", tag, n)
 	}
 	if strings.HasSuffix(rest, "?") {
-		var n int
-		fmt.Sscanf(rest[:len(rest)-1], "%d", &n)
-		val := s.cfg.CH[n]
-		return fmt.Sprintf("\r\n+CH%d:%d\r\n\r\nOK\r\n", n, val)
-	}
-	return "\r\nOK\r\n"
-}
-
-func (s *GatewaySimService) handleATSpd(rest string) string {
-	if before, after, ok := strings.Cut(rest, "="); ok {
-		var n, val int
-		fmt.Sscanf(before, "%d", &n)
-		fmt.Sscanf(after, "%d", &val)
-		s.cfg.SPD[n] = val
-		return fmt.Sprintf("\r\n+SPD%d:OK\r\n", n)
-	}
-	if strings.HasSuffix(rest, "?") {
-		var n int
-		fmt.Sscanf(rest[:len(rest)-1], "%d", &n)
-		val := s.cfg.SPD[n]
-		return fmt.Sprintf("\r\n+SPD%d:%d\r\n\r\nOK\r\n", n, val)
-	}
-	return "\r\nOK\r\n"
-}
-
-func (s *GatewaySimService) handleATPwr(rest string) string {
-	if before, after, ok := strings.Cut(rest, "="); ok {
-		var n, val int
-		fmt.Sscanf(before, "%d", &n)
-		fmt.Sscanf(after, "%d", &val)
-		s.cfg.PWR[n] = val
-		return fmt.Sprintf("\r\n+PWR%d:OK\r\n", n)
-	}
-	if strings.HasSuffix(rest, "?") {
-		var n int
-		fmt.Sscanf(rest[:len(rest)-1], "%d", &n)
-		val := s.cfg.PWR[n]
-		return fmt.Sprintf("\r\n+PWR%d:%d\r\n\r\nOK\r\n", n, val)
+		n, _ := strconv.Atoi(rest[:len(rest)-1])
+		return fmt.Sprintf("\r\n+%s%d:%d\r\n\r\nOK\r\n", tag, n, m[n])
 	}
 	return "\r\nOK\r\n"
 }
@@ -728,13 +722,16 @@ func (s *GatewaySimService) SendCommand(cmd string) error {
 
 	switch action {
 	case "telemetry":
-		x := rand.Intn(501) - 250
-		y := rand.Intn(501) - 250
-		btn := rand.Intn(2)
+		x := rand.IntN(501) - 250
+		y := rand.IntN(501) - 250
+		btn := rand.IntN(2)
 		s.sendTelemetry(x, y, btn)
 	case "rssi":
-		s.sendToClient(s.cfg.NID, []byte{dataRSSI})
-		s.logf("[%s] TX RSSI Request [%08X]", time.Now().Format("15:04:05"), s.cfg.NID)
+		s.mu.Lock()
+		nid := s.cfg.NID
+		s.mu.Unlock()
+		s.sendToClient(nid, []byte{dataRSSI})
+		s.logf("[%s] TX RSSI Request [%08X]", nowTS(), nid)
 	case "auto":
 		s.mu.Lock()
 		if len(parts) > 1 && parts[1] == "off" {
@@ -770,6 +767,9 @@ func (s *GatewaySimService) SendCommand(cmd string) error {
 }
 
 // ── Helpers ──
+
+// nowTS returns the current local time as "HH:MM:SS" for log lines.
+func nowTS() string { return time.Now().Format("15:04:05") }
 
 func (s *GatewaySimService) logf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
@@ -808,4 +808,3 @@ func abs(x int) int {
 	}
 	return x
 }
-

@@ -87,6 +87,9 @@ func (c *Command) SendFrame(canID uint32, data []byte, dlc int, isExtended, isRe
 		return fmt.Errorf("CAN HAL not initialized")
 	}
 
+	if dlc > 8 {
+		dlc = 8
+	}
 	var frameData [8]byte
 	if data != nil && dlc > 0 {
 		copy(frameData[:], data)
@@ -110,9 +113,11 @@ func (c *Command) SendFrame(canID uint32, data []byte, dlc int, isExtended, isRe
 
 	// Notify callback about TX frame
 	if c.onFrame != nil {
+		txData := make([]byte, dlc)
+		copy(txData, frameData[:dlc])
 		c.onFrame(FrameEvent{
 			ID:   canID,
-			Data: append([]byte{}, frameData[:dlc]...),
+			Data: txData,
 			DLC:  dlc,
 			IsTX: true,
 		})
@@ -129,9 +134,11 @@ func (c *Command) StartMonitor() {
 	c.monitoring.Store(true)
 	c.unsub = c.dispatcher.Subscribe(func(frame *canhal.Frame) {
 		if c.onFrame != nil && c.monitoring.Load() {
+			rxData := make([]byte, frame.DLC)
+			copy(rxData, frame.Data[:frame.DLC])
 			c.onFrame(FrameEvent{
 				ID:   frame.ID,
-				Data: append([]byte{}, frame.Data[:frame.DLC]...),
+				Data: rxData,
 				DLC:  int(frame.DLC),
 				IsTX: false,
 			})
